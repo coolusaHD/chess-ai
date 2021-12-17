@@ -5,6 +5,15 @@ class Agent:
     def __init__(self):
         self.move_queue = None
 
+        self.nextMove = None
+        self.counter = None
+        self.currentDepth = None
+        self.start = None
+        self.timeout = None
+        self.globalBestMove = None
+        self.globalBestScore = None
+        self.nextMoveScore = None
+
     def get_move(self):
         move = None
         while not self.move_queue.empty():
@@ -38,7 +47,8 @@ class Agent:
 
         Returns
         -------
-        none
+        Move
 
         """
-        # TODO
+        validMoves = gs.getValidMoves()
+        self.update_move(random.choice(validMoves), -1, -1)

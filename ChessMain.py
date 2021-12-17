@@ -18,10 +18,9 @@ import os.path as osp
 
 import pygame as py
 import ChessEngine
-# from Chess.agents import ChessAI
-# from Chess.agents.ChessAI import MrExpert, MrRandom
 # from agents.expert import MrExpert
 from agents.random import MrRandom
+from student_agents.template import Agent
 from sys import exit
 from multiprocessing import Process, Queue, freeze_support
 import importlib.util
@@ -123,6 +122,8 @@ def main(args):
             agent = None
         elif path_or_name == 'Human':
             agent = None
+        elif path_or_name == 'Agent':
+            agent = Agent
         else:
             spec = importlib.util.spec_from_file_location("Agent", path_or_name)
             foo = importlib.util.module_from_spec(spec)
