@@ -20,7 +20,8 @@ import pygame as py
 import ChessEngine
 # from agents.expert import MrExpert
 from agents.random import MrRandom
-from student_agents.template import Agent
+from student_agents.template import Agent as Agent1
+from student_agents.template2 import Agent as Agent2
 from sys import exit
 from multiprocessing import Process, Queue, freeze_support
 import importlib.util
@@ -122,8 +123,10 @@ def main(args):
             agent = None
         elif path_or_name == 'Human':
             agent = None
-        elif path_or_name == 'Agent':
-            agent = Agent
+        elif path_or_name == 'Agent1':
+            agent = Agent1
+        elif path_or_name == 'Agent2':
+            agent = Agent2
         else:
             spec = importlib.util.spec_from_file_location("Agent", path_or_name)
             foo = importlib.util.module_from_spec(spec)
