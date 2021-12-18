@@ -1,1 +1,1 @@
-Powershell.exe -executionpolicy remotesigned python ChessMain.py --agent1='MrRandom' --agent2='Agent' --verbose --time_control=20 --use_gui
+Powershell.exe -executionpolicy remotesigned python ChessMain.py --agent1='MrRandom' --agent2='Agent1' --verbose --time_control=20 --use_gui 

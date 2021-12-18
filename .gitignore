@@ -1,0 +1,7 @@
+#gitignore for python
+#
+
+./__pycache__/*
+*.pyc
+
+./vscode
