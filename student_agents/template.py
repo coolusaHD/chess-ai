@@ -5,7 +5,7 @@ import copy
 class Agent:
     def __init__(self):
         self.move_queue = None
-        self.color = None
+        self.color = 'black'
         self.nextMove = None
         self.counter = None
         self.currentDepth = None
@@ -62,7 +62,7 @@ class Agent:
         self.nextMoveScore = None
         self.currentDepth = 2
         self.start = time.time()
-        self.timeout = self.start + 10
+        self.timeout = self.start + 19
 
         self.alphaBetaMax(gs, startValidMoves, self.currentDepth, -1000000, 1000000)
         
@@ -95,15 +95,15 @@ class Agent:
 
         #check if time is up
         if time.time() > self.timeout:
-            return
+            return -1000000
 
         #check if depth is reached
         if depthLeft == 0:
+            print('GSmax:')
+            print(gs)
+            print('Evaluation max: ', self.evaluate(gs,True))
             return self.evaluate(gs,True)
 
-        #check if there are no more valid moves
-        if len(validMoves) == 0:
-            return self.evaluate(gs,True)
 
         #check if there are more than one valid moves
         for move in validMoves:
@@ -117,12 +117,13 @@ class Agent:
 
             #check if new gamestate is not a terminal state
             self.nextMoveScore = self.alphaBetaMin(newGamestate, newValidMoves, depthLeft-1, alpha, beta)
+            if self.nextMoveScore >= beta:
+                return beta
             if self.nextMoveScore > alpha:
                 alpha = self.nextMoveScore
                 self.globalBestMove = move
                 self.globalBestScore = alpha
-            if alpha >= beta:
-                return alpha
+            
 
         return alpha
 
@@ -150,35 +151,33 @@ class Agent:
 
         #check if time is up
         if time.time() > self.timeout:
-            return
+            return -1000000
 
         #check if depth is reached
         if depthLeft == 0:
+            print('GSmin: ') 
+            print(gs)
+            print('Evaluation min: ', self.evaluate(gs,False))
             return self.evaluate(gs,False)
 
-        #check if there are no more valid moves
-        if len(gs.getValidMoves()) == 0:
-            return self.evaluate(gs,False)
 
         #check if there are more than one valid moves
-        for move in gs.getValidMoves():
+        for move in validMoves:
             #get new gamestate
             newGamestate = copy.deepcopy(gs)
             #print(newGamestate)
             newGamestate.makeMove(move)
             
-
             #get new valid moves
             newValidMoves = newGamestate.getValidMoves()
 
             #check if new gamestate is not a terminal state
             self.nextMoveScore = self.alphaBetaMax(newGamestate, newValidMoves, depthLeft-1, alpha, beta)
+            if self.nextMoveScore <= alpha:
+                return alpha
             if self.nextMoveScore < beta:
                 beta = self.nextMoveScore
-                self.globalBestMove = move
-                self.globalBestScore = beta
-            if alpha >= beta:
-                return beta
+            
 
         return beta
 
@@ -209,50 +208,50 @@ class Agent:
 
     #Evaluation array for white pieces
     pawnEvalWhite = [
-        [0.0,  0.0,  0.0,  0.0,  0.0,  0.0],
-        [5.0,  5.0,  5.0,  5.0,  5.0,  5.0],
-        [1.0,  1.0,  2.0,  3.0,  3.0,  2.0],
-        [0.5,  0.5,  1.0,  2.5,  2.5,  1.0],
-        [0.0,  0.0,  0.0,  2.0,  2.0,  0.0],
-        [0.5, -0.5, -1.0,  0.0,  0.0, -1.0],
+        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+        5.0,  5.0,  5.0,  5.0,  5.0,  5.0,
+        1.0,  2.0,  2.5,  2.5,  2.0,  1.0,
+        0.5,  -0.5,  0.0,  0.5, -0.5, 0.0,
+        0.5,  0.0,  -2.0,  2.0,  2.0,  0.0,
+        0.0, 0.0, 0.0,  0.0,  0.0, 0.0,
     ]
 
     rookEvalWhite = [
-        [0.0,  0.0,  0.0,  0.0,  0.0,  0.0],
-        [5.0,  5.0,  5.0,  5.0,  5.0,  5.0],
-        [1.0,  1.0,  2.0,  3.0,  3.0,  2.0],
-        [0.5,  0.5,  1.0,  2.5,  2.5,  1.0],
-        [0.0,  0.0,  0.0,  2.0,  2.0,  0.0],
-        [0.5, -0.5, -1.0,  0.0,  0.0, -1.0],
+        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+        5.0,  5.0,  5.0,  5.0,  5.0,  5.0,
+        1.0,  1.0,  2.0,  3.0,  3.0,  2.0,
+        0.5,  0.5,  1.0,  2.5,  2.5,  1.0,
+        0.0,  0.0,  0.0,  2.0,  2.0,  0.0,
+        0.5, -0.5, -.0,  0.0,  0.0, -1.0,
     ]
 
     knightEvalWhite = [
-        [-5.0, -4.0, -3.0, -3.0, -3.0, -4.0],
-        [-4.0, -2.0,  0.0,  0.0,  0.0, -2.0],
-        [-3.0,  0.0,  1.0,  1.5,  1.5,  0.0],
-        [-3.0,  0.5,  1.5,  2.0,  2.0,  0.5],
-        [-3.0,  0.0,  1.5,  2.0,  2.0,  0.0],
-        [-4.0, -2.0,  0.0,  0.0,  0.0, -2.0],
+        -5.0, -4.0, -3.0, -3.0, -3.0, -4.0,
+        -4.0, -2.0,  0.0,  0.0,  0.0, -2.0,
+        -3.0,  0.0,  1.0,  1.5,  1.5,  0.0,
+        -3.0,  0.5,  1.5,  2.0,  2.0,  0.5,
+        -3.0,  0.0,  1.5,  2.0,  2.0,  0.0,
+        -4.0, -2.0,  0.0,  0.0,  0.0, -2.0,
     ]
-    
+
     bishopEvalWhite = [
-        [-2.0, -1.0, -1.0, -1.0, -1.0, -1.0],
-        [-1.0,  0.0,  0.0,  0.0,  0.0,  0.0],
-        [-1.0,  0.0,  0.5,  1.0,  1.0,  0.0],
-        [-1.0,  0.5,  0.5,  1.0,  1.0,  0.5],
-        [-1.0,  0.0,  1.0,  1.0,  1.0,  0.0],
-        [-1.0,  0.5,  1.0,  1.0,  1.0,  0.5],
-        [-2.0, -1.0, -1.0, -1.0, -1.0, -1.0],
+      -2.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+        -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+        -1.0,  0.0,  0.5,  1.0,  1.0,  0.0,
+        -1.0,  0.5,  0.5,  1.0,  1.0,  0.5,
+        -1.0,  0.0,  1.0,  1.0,  1.0,  0.0,
+        -1.0,  0.5,  1.0,  1.0,  1.0,  0.5,
+        -2.0, -1.0, -1.0, -1.0, -1.0, -1.0,
     ]
 
 
     kingEvalWhite = [
-        [-3.0, -4.0, -4.0, -5.0, -5.0, -4.0],
-        [-3.0, -4.0, -4.0, -5.0, -5.0, -4.0],
-        [-3.0, -4.0, -4.0, -5.0, -5.0, -4.0],
-        [-3.0, -4.0, -4.0, -5.0, -5.0, -4.0],
-        [-2.0, -3.0, -3.0, -4.0, -4.0, -3.0],
-        [-1.0, -2.0, -2.0, -2.0, -2.0, -2.0],
+        -3.0, -4.0, -4.0, -5.0, -5.0, -4.0,
+        -3.0, -4.0, -4.0, -5.0, -5.0, -4.0,
+        -3.0, -4.0, -4.0, -5.0, -5.0, -4.0,
+        -3.0, -4.0, -4.0, -5.0, -5.0, -4.0,
+        -2.0, -3.0, -3.0, -4.0, -4.0, -3.0,
+        -1.0, -2.0, -2.0, -2.0, -2.0, -2.0,
     ]
 
     #Evaluation array for black pieces
@@ -282,10 +281,10 @@ class Agent:
             if isMax:
                 return self.evaluateWhite(gs)
             else:
-                return -self.evaluateBlack(gs)
+                return self.evaluateBlack(gs)
         else:
             if isMax:
-                return -self.evaluateWhite(gs)
+                return self.evaluateWhite(gs)
             else:
                 return self.evaluateBlack(gs)
     
@@ -305,30 +304,30 @@ class Agent:
 
         """
         score = 0
-        for i in range(0, 6):
-            for j in range(0, 6):
-                if self.getBoardFigure(i, j) == 'bp':
-                    score += self.pawnSingleEval + self.pawnEvalBlack[i][j]
-                if self.getBoardFigure(i, j) == 'bN':
-                    score += self.knightSingleEval + self.knightEvalBlack[i][j]
-                if self.getBoardFigure(i, j) == 'bB':
-                    score += self.bishopSingleEval + self.bishopEvalBlack[i][j]
-                if self.getBoardFigure(i, j) == 'bR':
-                    score += self.rookSingleEval + self.rookEvalBlack[i][j]
-                if self.getBoardFigure(i, j) == 'bK':
-                    score += self.kingSingleEval + self.kingEvalBlack[i][j]
+        for i in range(0, 35):
+            if self.getBoardFigure(gs, i) == 'bp':
+                score += self.pawnSingleEval + self.pawnEvalBlack[i]
+            if self.getBoardFigure(gs, i) == 'bN':
+                score += self.knightSingleEval + self.knightEvalBlack[i]
+            if self.getBoardFigure(gs, i) == 'bB':
+                score += self.bishopSingleEval + self.bishopEvalBlack[i]
+            if self.getBoardFigure(gs, i) == 'bR':
+                score += self.rookSingleEval + self.rookEvalBlack[i]
+            if self.getBoardFigure(gs, i) == 'bK':
+                score += self.kingSingleEval + self.kingEvalBlack[i]
         return score
 
-    def getBoardFigure(self, i, j):
+    def getBoardFigure(self,gs, i):
         """
         Get the figure at the given position
 
         Parameters
         ----------
+        gs : GameState
+            gamestate to access board
         i : int
-            row
-        j : int
-            column
+            index
+
 
         Returns
         -------
@@ -336,7 +335,7 @@ class Agent:
 
         """
 
-        return i*10 + j
+        return gs.board[i]
 
 
     def evaluateWhite(self, gs):
@@ -354,18 +353,17 @@ class Agent:
 
         """
         score = 0
-        for i in range(0, 6):
-            for j in range(0, 6):
-                if self.getBoardFigure(i, j) == 'wp':
-                    score += self.pawnSingleEval + self.pawnEvalWhite[i][j]
-                if self.getBoardFigure(i, j) == 'wN':
-                    score += self.knightSingleEval + self.knightEvalWhite[i][j]
-                if self.getBoardFigure(i, j) == 'wB':
-                    score += self.bishopSingleEval + self.bishopEvalWhite[i][j]
-                if self.getBoardFigure(i, j) == 'wR':
-                    score += self.rookSingleEval + self.rookEvalWhite[i][j]
-                if self.getBoardFigure(i, j) == 'wK':
-                    score += self.kingSingleEval + self.kingEvalWhite[i][j]
+        for i in range(0, 35):
+            if self.getBoardFigure(gs, i) == 'wp':
+                score += self.pawnSingleEval + self.pawnEvalWhite[i]
+            if self.getBoardFigure(gs, i) == 'wN':
+                score += self.knightSingleEval + self.knightEvalWhite[i]
+            if self.getBoardFigure(gs, i) == 'wB':
+                score += self.bishopSingleEval + self.bishopEvalWhite[i]
+            if self.getBoardFigure(gs, i) == 'wR':
+                score += self.rookSingleEval + self.rookEvalWhite[i]
+            if self.getBoardFigure(gs, i) == 'wK':
+                score += self.kingSingleEval + self.kingEvalWhite[i]
         return score
 
 

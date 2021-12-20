@@ -15,7 +15,8 @@ import time
 import argparse
 import os
 import os.path as osp
-
+#this stops the print  of the pygame version etc.
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame as py
 import ChessEngine
 # from agents.expert import MrExpert
@@ -662,7 +663,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_games', type=int, default=1,
                         help='How many games you want to play with this settings and agents.'
                              'Agents do NOT switch sides after each game.')
-    parser.add_argument('--time_control', type=int, default=20000000000000000,
+    parser.add_argument('--time_control', type=int, default=20,
                         help='How many seconds per move each player has.')
 
     args = parser.parse_args()
