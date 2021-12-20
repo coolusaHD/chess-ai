@@ -49,11 +49,11 @@ BOARD_COLOR = data["Board color"]
 # 5 nega max with alpha-beta, move ordering, no threefold , piecepositions * 0.1 
 # 17 random
 
-
+#disabled because pc has 20 cores :)
 # activate, if on server without video driver:
-server = multiprocessing.cpu_count() > 17
-if server:
-    os.environ["SDL_VIDEODRIVER"] = "dummy"
+#server = multiprocessing.cpu_count() > 17
+#if server:
+#    os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 # global colors
 # if BOARD_COLOR == 1:
@@ -662,7 +662,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_games', type=int, default=1,
                         help='How many games you want to play with this settings and agents.'
                              'Agents do NOT switch sides after each game.')
-    parser.add_argument('--time_control', type=int, default=20,
+    parser.add_argument('--time_control', type=int, default=20000000000000000,
                         help='How many seconds per move each player has.')
 
     args = parser.parse_args()
