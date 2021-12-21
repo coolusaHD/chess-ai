@@ -164,8 +164,12 @@ class Agent:
 
         if(alpha < standPat):
             alpha = standPat
-
-        while(True):
+        check = True
+        #get checks
+        
+        while(check):
+            check, listA , listB = gs.checkForPinsAndChecks()
+            print('Check: ' + str(check))
             #get all valid moves
             validMoves = gs.getValidMoves()
 
@@ -194,7 +198,6 @@ class Agent:
                     alpha = self.nextMoveScore
             
             return alpha
-
 
 
     def evaluateBoard(self, gs):
