@@ -5,7 +5,7 @@ import copy
 class Agent:
     def __init__(self):
         self.move_queue = None
-        self.color = 'black'
+        self.color = None
         self.nextMove = None
         self.counter = None
         self.currentDepth = None
@@ -54,6 +54,12 @@ class Agent:
 
         #get all valid moves
         startValidMoves = gs.getValidMoves()
+        
+        #get color of Agent
+        if gs.whiteToMove:
+            self.color = 'white'
+        else:
+            self.color = 'black'
 
 
         #alpha beta pruning to find best move
@@ -62,12 +68,214 @@ class Agent:
         self.nextMoveScore = None
         self.currentDepth = 2
         self.start = time.time()
-        self.timeout = self.start + 1900000
+        self.timeout = self.start + 1900
 
-        self.alphaBetaMax(gs, startValidMoves, self.currentDepth, -1000000, 1000000)
+        self.alphaBeta(gs, startValidMoves, self.currentDepth, -1000000, 1000000)
         
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
+
+
+    def alphaBeta(self, gs, validMoves, depthLeft, alpha, beta):
+        """
+        Recursive method to find best move
+
+        Parameters
+        ----------
+        gs : Gamestate
+            current state of the game
+        validMoves : list
+            list of valid moves
+        depthLeft : int
+            depth of the current recursion
+        alpha : int
+            alpha value
+        beta : int
+            beta value
+
+        Returns
+        -------
+        int
+
+        """
+
+        #check if time is up
+        if time.time() > self.timeout:
+            return -1000000
+
+        #check if depth is reached
+        if depthLeft == 0:
+            #start quiesce search
+            return self.quiesce( gs, alpha, beta)
+
+
+        #check if there are more than one valid moves
+        for move in validMoves:
+            #get new gamestate
+            newGamestate = copy.deepcopy(gs)
+            #print(newGamestate)
+            newGamestate.makeMove(move)
+
+            #get new valid moves
+            newValidMoves = newGamestate.getValidMoves()
+
+            #check if new gamestate is not a terminal state
+            self.nextMoveScore = -self.alphaBeta( newGamestate, newValidMoves, depthLeft-1, -alpha, -beta)
+            if self.nextMoveScore >= beta:
+                return beta
+            if self.nextMoveScore > alpha:
+                alpha = self.nextMoveScore
+                self.globalBestMove = move
+                self.globalBestScore = alpha
+            
+
+        return alpha
+
+
+
+    def quiesce(self, gs, alpha, beta):
+        """
+        Quiescence search
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to access board
+        alpha : int
+            alpha value
+        beta : int
+            beta value
+
+        Returns
+        -------
+        int
+
+        """
+        print('Quiesce:')
+        #check if time is up
+        if time.time() > self.timeout:
+            return -1000000
+
+        #evaluate stand pat
+        standPat = self.evaluateBoard(gs)
+
+        if(standPat >= beta):
+            return beta
+
+        if(alpha < standPat):
+            alpha = standPat
+
+        while(True):
+            #get all valid moves
+            validMoves = gs.getValidMoves()
+
+            #check if there are no valid moves
+            if(len(validMoves) == 0):
+                return standPat
+
+            #check if time is up
+            if time.time() > self.timeout:
+                return -1000000
+
+            #check if there are more than one valid moves
+            for move in validMoves:
+                #get new gamestate
+                newGamestate = copy.deepcopy(gs)
+                #print(newGamestate)
+                newGamestate.makeMove(move)
+                
+                self.nextMoveScore = -self.quiesce( newGamestate, -beta, -alpha)
+
+                newGamestate.undoMove()
+
+                if self.nextMoveScore >= beta:
+                    return beta
+                if self.nextMoveScore > alpha:
+                    alpha = self.nextMoveScore
+            
+            return alpha
+
+
+
+    def evaluateBoard(self, gs):
+        """
+        Evaluate the gamestate
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to be evaluated
+
+        Returns
+        -------
+        float
+
+        """
+        countBK = 0
+        countBR = 0
+        countBB = 0
+        countBN = 0
+        countBP = 0
+
+        countWK = 0
+        countWR = 0
+        countWB = 0
+        countWN = 0
+        countWP = 0
+
+        for i in range(0,35):
+            if gs.board[i] == 'BK':
+                countBK += 1
+            elif gs.board[i] == 'BR':
+                countBR += 1
+            elif gs.board[i] == 'BB':
+                countBB += 1
+            elif gs.board[i] == 'BN':
+                countBN += 1
+            elif gs.board[i] == 'BP':
+                countBP += 1
+
+            elif gs.board[i] == 'WK':
+                countWK += 1
+            elif gs.board[i] == 'WR':
+                countWR += 1
+            elif gs.board[i] == 'WB':
+                countWB += 1
+            elif gs.board[i] == 'WN':
+                countWN += 1
+            elif gs.board[i] == 'WP':
+                countWP += 1
+
+        materialScore = self.kingSingleEval*(countBK-countWK)
+        materialScore += self.rookSingleEval*(countBR-countWR)
+        materialScore += self.bishopSingleEval*(countBB-countWB)
+        materialScore += self.knightSingleEval*(countBN-countWN)
+        materialScore += self.pawnSingleEval*(countBP-countWP)
+
+        #calculate to valid moves for each color
+        gsB = copy.deepcopy(gs)
+        gsW = copy.deepcopy(gs)
+        gsB.whiteToMove = False
+        gsW.whiteToMove = True
+
+        validMovesB = gsB.getValidMoves()
+        validMovesW = gsW.getValidMoves()
+
+        mobilityWeight = 1
+        mobilityScore = mobilityWeight * (len(validMovesW) - len(validMovesB))
+
+        colorFactor = 1
+        if self.color == 'black':
+            colorFactor = -1
+
+
+        return (materialScore + mobilityScore)*colorFactor
+
+
+
+        
+
+
         
 
     def alphaBetaMax(self, gs, validMoves, depthLeft, alpha, beta):
