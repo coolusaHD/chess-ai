@@ -60,88 +60,14 @@ class Agent:
         self.globalBestMove = None
         self.globalBestScore = None
         self.nextMoveScore = None
-        self.currentDepth = 3
+        self.currentDepth = 4
         self.start = time.time()
         self.timeout = self.start + 19
 
-        #self.alphaBetaMax(gs, startValidMoves, self.currentDepth, -1000000, 1000000)
-
-        self.globalBestScore, self.globalBestMove = self.alphaBeta(gs, self.currentDepth, -1000000, 1000000)
+        self.alphaBetaMax(gs, startValidMoves, self.currentDepth, -1000000, 1000000)
         
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
-
-
-    def alphaBeta(self, gs, depthLeft, alpha, beta):
-        """
-        Recursive method to find best move
-
-        Parameters
-        ----------
-        gs : Gamestate
-            current state of the game
-        depthLeft : int
-            depth of the current recursion
-        alpha : int
-            alpha value
-        beta : int
-            beta value
-
-        Returns
-        -------
-        int
-
-        """
-
-        #check if time is up
-        if time.time() > self.timeout:
-            return -1000000
-
-        #check if depth is reached or check,stale,draw or threefold repetition
-        if depthLeft == 0: #or gs.checkMate or gs.staleMate or gs.draw or gs.threefold:
-            if self.color == 'white':
-                return -self.evaluateBoard(gs), self.globalBestMove
-            else:
-                return self.evaluateBoard(gs), self.globalBestMove
-
-        else:
-
-            if gs.whiteToMove and self.color == 'white':
-
-                for move in gs.getValidMoves():
-                    #get new gamestate
-                    gs.makeMove(move)
-
-                    #recursive call
-                    score, self.globalBestMove = self.alphaBeta(gs, depthLeft-1, alpha, beta)
-
-                    if score > alpha:
-                        alpha = score
-                        self.globalBestMove  = move
-                        if alpha >= beta:
-                            break
-                
-                return alpha, self.globalBestMove 
-
-            else:
-
-                for move in gs.getValidMoves():
-                    #get new gamestate
-                    gs.makeMove(move)
-
-                    #recursive call
-                    score, self.globalBestMove  = self.alphaBeta(gs, depthLeft-1, alpha, beta)
-
-                    if score < beta:
-                        beta = score
-                        self.globalBestMove  = move
-                        if alpha >= beta:
-                            break
-
-                return beta, self.globalBestMove 
-
-                
-
         
 
     def alphaBetaMax(self, gs, validMoves, depthLeft, alpha, beta):
