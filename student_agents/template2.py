@@ -64,7 +64,7 @@ class Agent:
         #alpha beta pruning to find best move
         
         self.nextMoveScore = None
-        self.currentDepth = 5
+        self.currentDepth = 2
         self.start = time.time()
         self.timeout = self.start + 19
 
@@ -122,7 +122,7 @@ class Agent:
 
         #check for endgame
         if depth == 0:
-            return self.evaluateBoard(gs)
+            return self.Quiesce(gs, alpha, beta)
 
         #check for maxPlayer
         if maxPlayer:
@@ -196,7 +196,29 @@ class Agent:
 
             return bestScore
             
+    def Quiesce(self, gs, alpha, beta, depth = 4):
+        stand_pat = self.evaluateBoard(gs)
+        if depth  == 0:
+            return stand_pat
+        if(stand_pat >= beta):
+            return beta
+        if(alpha < stand_pat):
+            alpha = stand_pat
+        #consider every capture
+        validMoves = gs.getValidMoves()
+        for move in validMoves:
 
+            if move.isCapture:
+                
+                gs.makeMove(move)
+                score = -self.Quiesce(gs, -beta, -alpha, depth - 1)
+                gs.undoMove()
+
+                if(score >= beta):
+                    return beta
+                if(score > alpha):
+                    alpha = score
+        return alpha
 
     def reverseArray(array):
         """
