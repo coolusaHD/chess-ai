@@ -16,6 +16,10 @@ class Agent:
         self.globalBestScore = None
         self.nextMoveScore = None
 
+        self.zobristTable = self.initZobristTable()
+        self.hashedBoard = None
+        self.hashStorageTable = {}
+
     def get_move(self):
         move = None
         while not self.move_queue.empty():
@@ -52,8 +56,6 @@ class Agent:
         None but updates the returnQueue
 
         """
-
-        
         
         #get color of Agent
         if gs.whiteToMove:
@@ -68,6 +70,8 @@ class Agent:
         self.currentDepth = 4
         self.start = datetime.datetime.now()
         self.timeout = self.start + datetime.timedelta(seconds=19)
+
+        self.hashedBoard = self.hashBoard(gs) 
 
 
         #get all valid moves
@@ -95,6 +99,140 @@ class Agent:
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
 
+
+    def indciesOfFigures(self, string):
+        """
+        Helper method to get indices of figures
+
+        Parameters
+        ----------
+        string : str
+            string to be evaluated
+
+        Returns
+        -------
+        int
+            index of figure
+
+        """
+        if string == 'bp':
+            return 0
+        elif string == 'bN':
+            return 1
+        elif string == 'bB':
+            return 2
+        elif string == 'bR':
+            return 3
+        elif string == 'bK':
+            return 4
+        elif string == 'wp':
+            return 5
+        elif string == 'wN':
+            return 6
+        elif string == 'wB':
+            return 7
+        elif string == 'wR':
+            return 8
+        elif string == 'wK':
+            return 9
+        else:
+            return -1
+        
+    def figureStringFromIndicies(self, num):
+        """
+        Helper method to get figure string from index
+
+        Parameters
+        ----------
+        num : int
+            index
+
+        Returns
+        -------
+        str
+
+        """
+        if num == 0:
+            return 'bp'
+        elif num == 1:
+            return 'bN'
+        elif num == 2:
+            return 'bB'
+        elif num == 3:
+            return 'bR'
+        elif num == 4:
+            return 'bK'
+        elif num == 5:
+            return 'wp'
+        elif num == 6:
+            return 'wN'
+        elif num == 7:
+            return 'wB'
+        elif num == 8:
+            return 'wR'
+        elif num == 9:
+            return 'wK'
+        else:
+            return None
+
+    def initZobristTable(self):
+        """
+        Helper method to initialize the Zobrist table
+
+        Returns
+        -------
+        list
+
+        """
+        table = []
+        for i in range(36):
+            table.append([])
+            for j in range(10):
+                table[i].append(random.randint(0, 2**64 - 1))
+        return table
+
+    def hashBoard(self, gs):
+        """
+        Helper method to hash the board
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to access board
+
+        Returns
+        -------
+        int
+
+        """
+        hash = 0
+        for i in range(36):
+                if gs.board[i] != '--':
+                    hash ^= self.zobristTable[i][self.indciesOfFigures(gs.board[i])]
+        return hash
+
+    def updatezTableFromMove(self, gs, move):
+        """
+        Helper method to update the zobrist table after a move
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to access board
+        move : Move
+            move to be evaluated
+
+        Returns
+        -------
+        None
+
+        """
+        #update zobrist table from start and end position of move
+        startPos = move.startRC
+        endPos = move.endRC
+        figure = move.pieceMoved
+        self.hashedBoard ^= self.zobristTable[startPos][self.indciesOfFigures('--')]
+        self.hashedBoard ^= self.zobristTable[endPos][self.indciesOfFigures(figure)]
 
     def alphaBeta(self, gs, depth, alpha, beta, maxPlayer):
         """
@@ -127,6 +265,10 @@ class Agent:
             #return self.evaluateBoard(gs)
             return self.Quiesce(gs, alpha, beta)
 
+        #check if evaluated gamestate is in table
+        if self.hashStorageTable[self.hashBoard()] != None:
+            return self.hashStorageTable[self.hashBoard()]['score']
+
         #check for maxPlayer
         if maxPlayer:
             #get all valid moves
@@ -148,6 +290,9 @@ class Agent:
                 copyGS.makeMove(move)
                 #recursive call
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, False)
+
+                #save score of gamestate in table
+                self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth}
                 #update score
                 bestScore = max(bestScore, score)
                 #update alpha
@@ -189,8 +334,7 @@ class Agent:
                 if beta <= alpha:
                     break
 
-            return bestScore
-            
+            return bestScore 
 
     def Quiesce(self, gs, alpha, beta):
         """
