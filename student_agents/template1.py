@@ -1,11 +1,12 @@
 import random
-import time
+import datetime
 import copy
+import time
 
 class Agent:
     def __init__(self):
         self.move_queue = None
-        self.color = None
+        self.color = 'black'
         self.nextMove = None
         self.counter = None
         self.currentDepth = None
@@ -48,156 +49,281 @@ class Agent:
 
         Returns
         -------
-        None but updates the returnQueue
+        Move
 
         """
 
-        
-        
-        #get color of Agent
-        if gs.whiteToMove:
-            self.color = 'white'
-        else:
-            self.color = 'black'
+        #get all valid moves
+        startValidMoves = gs.getValidMoves()
 
 
         #alpha beta pruning to find best move
-        
-        self.nextMoveScore = None
-        self.currentDepth = 5
-        self.start = time.time()
-        self.timeout = self.start + 19
-
-
-        #get all valid moves
-        startValidMoves = gs.getValidMoves()
         self.globalBestMove = None
-        self.globalBestScore = 0
+        self.globalBestScore = None
+        self.nextMoveScore = None
+        self.currentDepth = 1
+        self.start = time.time()
+        #self.start = datetime.datetime.now()
+        self.timeout = self.start + 19
+        #self.timeout = self.start.second + 19
 
-        for move in startValidMoves:
+        #self.alphaBetaMax(gs, startValidMoves, self.currentDepth, -1000000, 1000000)
 
-            #copy gamestate
-            copyGS = copy.deepcopy(gs)
-
-            #make move
-            copyGS.makeMove(move)
-
-            #calculate score
-            score = self.alphaBeta(copyGS, self.currentDepth, -float('inf'), float('inf'), True)
-
-            if score < self.globalBestScore:
-                self.globalBestMove = move
-                self.globalBestScore = score
-            
+        #self.globalBestScore = self.alphaBeta(gs, self.currentDepth, -1000000,  1000000)
+        self.globalBestScore, self.globalBestMove = self.new_alphabeta(gs, self.currentDepth, -1000000,  1000000, 1)
         
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
 
 
-    def alphaBeta(self, gs, depth, alpha, beta, maxPlayer):
+    def alphaBeta(self, gs, depthLeft, alpha, beta):
         """
         Recursive method to find best move
 
         Parameters
         ----------
-        gs : GameState
-            gamestate to be evaluated
-        depth : int
-            depth of recursion
-        alpha : float
+        gs : Gamestate
+            current state of the game
+        depthLeft : int
+            depth of the current recursion
+        alpha : int
             alpha value
-        beta : float
+        beta : int
             beta value
-        maxPlayer : bool
-            True if maxPlayer, False if minPlayer
 
         Returns
         -------
-        float
+        int
 
         """
-        #check for timeout
+
+        #check if time is up
         if time.time() > self.timeout:
             return 0
 
-        #check for endgame
-        if depth == 0:
+        #check if depth is reached or check,stale,draw or threefold repetition
+        if depthLeft == 0: #or gs.checkMate or gs.staleMate or gs.draw or gs.threefold:
+            return self.Quiesce(gs, alpha, beta)
+
+        
+        for move in gs.getValidMoves():
+            #get new gamestate
+            gs.makeMove(move)
+
+            #recursive call
+            score = -self.alphaBeta(gs, depthLeft-1, -alpha, -beta)
+
+            gs.undoMove()
+
+            if score >= beta:
+                self.globalBestMove = move
+                return beta
+            if score > alpha:
+                alpha = score
+                self.globalBestMove = move
+
+        return alpha
+
+
+    def alphaBetaMax(self, gs, validMoves, depthLeft, alpha, beta):
+        """
+        Recursive method to find best move
+
+        Parameters
+        ----------
+        gs : Gamestate
+            current state of the game
+        validMoves : list
+            list of valid moves
+        depthLeft : int
+            depth of the current recursion
+        alpha : int
+            alpha value
+        beta : int
+            beta value
+
+        Returns
+        -------
+        int
+
+        """
+
+        #check if time is up with milliseconds
+        #diff = datetime.datetime.now() - self.start
+        #if diff.seconds+diff.microseconds/1000000 > self.timeout:
+        #    return -1000000
+
+        if time.time() > self.timeout:
+            return -1000000
+
+        #check if depth is reached
+        if depthLeft == 0:
             return self.evaluateBoard(gs)
 
-        #check for maxPlayer
-        if maxPlayer:
-            #get all valid moves
-            validMoves = gs.getValidMoves()
 
-            #check for endgame
-            if len(validMoves) == 0:
-                return self.evaluateBoard(gs)
+        #check if there are more than one valid moves
+        for move in validMoves:
+            #get new gamestate
+            #newGameState = copy.deepcopy(gs)
+            #print(newGamestate)
+            gs.makeMove(move)
 
-            #check for maxPlayer
-            bestScore = -float('inf')
+            #get new valid moves
+            newValidMoves = gs.getValidMoves()
 
-            #iterate over all valid moves
-            for move in validMoves:
+            #check if new gamestate is not a terminal state
+            self.nextMoveScore = self.alphaBetaMin(gs, newValidMoves, depthLeft-1, alpha, beta)
 
-                #copy gamestate
-                copyGS = copy.deepcopy(gs)
+            #undo move
+            gs.undoMove()
 
-                #make move
-                copyGS.makeMove(move)
 
-                #recursive call
-                score = self.alphaBeta(copyGS, depth - 1, alpha, beta, False)
-
-                #update score
-                bestScore = max(bestScore, score)
-
-                #update alpha
-                alpha = max(alpha, bestScore)
-
-                #check for beta cut off
-                if beta <= alpha:
-                    break
-
-            return bestScore
-
-        #check for minPlayer
-        else:
-            #get all valid moves
-            validMoves = gs.getValidMoves()
-
-            #check for endgame
-            if len(validMoves) == 0:
-                return self.evaluateBoard(gs)
-
-            #check for minPlayer
-            bestScore = float('inf')
-
-            #iterate over all valid moves
-            for move in validMoves:
-
-                #copy gamestate
-                copyGS = copy.deepcopy(gs)
-
-                #make move
-                copyGS.makeMove(move)
-
-                #recursive call
-                score = self.alphaBeta(copyGS, depth - 1, alpha, beta, True)
-
-                #update score
-                bestScore = min(bestScore, score)
-
-                #update beta
-                beta = min(beta, bestScore)
-
-                #check for beta cut off
-                if beta <= alpha:
-                    break
-
-            return bestScore
+            if self.nextMoveScore >= beta:
+                return beta
+            if self.nextMoveScore > alpha:
+                alpha = self.nextMoveScore
+                self.globalBestMove = move
+                self.globalBestScore = alpha
             
 
+        return alpha
 
+
+    def alphaBetaMin(self, gs, validMoves, depthLeft, alpha, beta):
+        """
+        Recursive method to find best move
+
+        Parameters
+        ----------
+        gs : Gamestate
+            current state of the game
+        depthLeft : int
+            depth of the current recursion
+        alpha : int
+            alpha value
+        beta : int
+            beta value
+
+        Returns
+        -------
+        int
+
+        """
+
+        #check if time is up
+        #diff = datetime.datetime.now() - self.start
+        #if diff.seconds+diff.microseconds/1000000 > self.timeout:
+        #    return -1000000
+
+        if time.time() > self.timeout:
+            return -1000000
+
+        #check if depth is reached
+        if depthLeft == 0:
+            return self.evaluateBoard(gs)
+
+
+        #check if there are more than one valid moves
+        for move in validMoves:
+
+            #get new gamestate
+            #newGameState = copy.deepcopy(gs)
+            #print(newGamestate)
+            gs.makeMove(move)
+            
+            #get new valid moves
+            newValidMoves = gs.getValidMoves()
+
+            #check if new gamestate is not a terminal state
+            self.nextMoveScore = self.alphaBetaMax(gs, newValidMoves, depthLeft-1, alpha, beta)
+
+            #undo move
+            gs.undoMove()
+
+            if self.nextMoveScore <= alpha:
+                return alpha
+            if self.nextMoveScore < beta:
+                beta = self.nextMoveScore
+            
+
+        return beta
+
+
+    def Quiesce(self, gs, alpha, beta):
+        stand_pat = self.evaluateBoard(gs)
+        if(stand_pat >= beta):
+            return beta
+        if(alpha < stand_pat):
+            alpha = stand_pat
+        #consider every capture
+        validMoves = gs.getValidMoves()
+        for move in validMoves:
+            if move.isCapture:
+                gs.makeMove(move)
+                score = -self.Quiesce(gs, -beta, -alpha)
+                gs.undoMove()
+                if(score >= beta):
+                    return beta
+                if(score > alpha):
+                    alpha = score
+        return alpha
+
+    def NegaMax(self, gs, alpha, beta, depth, color):
+
+        if time.time() > self.timeout:
+            return -1000000
+
+        if depth == 0:
+            return self.evaluateBoard(gs) * color
+            return self.Quiesce(gs, alpha, beta) * color
+
+        validMoves = gs.getValidMoves()
+
+        value = -1000000
+        for move in validMoves:
+            
+            gs.makeMove(move)
+
+            value = max(value, -self.NegaMax(gs, -beta, -alpha, depth-1, -color))
+            alpha = max(alpha, value)
+
+            gs.undoMove()
+
+            if alpha >= beta:
+                break
+        
+        return alpha
+
+
+    def new_alphabeta(self, gs, depth, alpha, beta, color):
+        if depth == 0:
+            return (gs.evaluateBoard(), None)
+        else: 
+            if color == 1: #maximizing player
+                bestmove = None
+                for move in gs.getValidMoves():
+                    gs.makeMove(move)
+                    score, move = self.new_alphabeta(gs, depth - 1, alpha, beta, -color)
+                    gs.undoMove()
+                    if score > alpha: # white maximizes her score
+                        alpha = score
+                        bestmove = move
+                        if alpha >= beta: # alpha-beta cutoff
+                            break
+                return alpha, bestmove
+            else:
+                bestmove = None
+                for move in gs.getValidMoves():
+                    gs.makeMove(move)
+                    score, move = self.new_alphabeta(gs, depth - 1, alpha, beta, -color)
+                    gs.undoMove()
+                    if score < beta: # black minimizes his score
+                        beta = score
+                        bestmove = move
+                        if alpha >= beta: # alpha-beta cutoff
+                            break
+                return beta, bestmove
+  
     def reverseArray(array):
         """
         Helper method to reverse an array
@@ -259,6 +385,7 @@ class Agent:
         -1.0,  0.5,  0.0,  0.0,  0.5, -1.0,
         -2.0, -1.0, -1.0, -1.0, -1.0, -2.0,
     ]
+
 
     kingEvalWhite = [
         -4.0, -4.0, -5.0, -5.0, -4.0, -4.0,
@@ -773,10 +900,6 @@ class Agent:
         #add col
         index += posList[1]*6
         return index
-    
-
-
-
     
 
 
