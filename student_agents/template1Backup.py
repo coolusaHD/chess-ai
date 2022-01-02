@@ -1,6 +1,7 @@
 import random
-import time
+import datetime
 import copy
+import time
 
 class Agent:
     def __init__(self):
@@ -60,15 +61,69 @@ class Agent:
         self.globalBestMove = None
         self.globalBestScore = None
         self.nextMoveScore = None
-        self.currentDepth = 4
+        self.currentDepth = 1
         self.start = time.time()
+        #self.start = datetime.datetime.now()
         self.timeout = self.start + 19
+        #self.timeout = self.start.second + 19
 
-        self.alphaBetaMax(gs, startValidMoves, self.currentDepth, -1000000, 1000000)
+        #self.alphaBetaMax(gs, startValidMoves, self.currentDepth, -1000000, 1000000)
+
+        #self.globalBestScore = self.alphaBeta(gs, self.currentDepth, -1000000,  1000000)
+        self.globalBestScore, self.globalBestMove = self.new_alphabeta(gs, self.currentDepth, -1000000,  1000000, 1)
         
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
+
+
+    def alphaBeta(self, gs, depthLeft, alpha, beta):
+        """
+        Recursive method to find best move
+
+        Parameters
+        ----------
+        gs : Gamestate
+            current state of the game
+        depthLeft : int
+            depth of the current recursion
+        alpha : int
+            alpha value
+        beta : int
+            beta value
+
+        Returns
+        -------
+        int
+
+        """
+
+        #check if time is up
+        if time.time() > self.timeout:
+            return 0
+
+        #check if depth is reached or check,stale,draw or threefold repetition
+        if depthLeft == 0: #or gs.checkMate or gs.staleMate or gs.draw or gs.threefold:
+            return self.Quiesce(gs, alpha, beta)
+
         
+        for move in gs.getValidMoves():
+            #get new gamestate
+            gs.makeMove(move)
+
+            #recursive call
+            score = -self.alphaBeta(gs, depthLeft-1, -alpha, -beta)
+
+            gs.undoMove()
+
+            if score >= beta:
+                self.globalBestMove = move
+                return beta
+            if score > alpha:
+                alpha = score
+                self.globalBestMove = move
+
+        return alpha
+
 
     def alphaBetaMax(self, gs, validMoves, depthLeft, alpha, beta):
         """
@@ -93,16 +148,17 @@ class Agent:
 
         """
 
-        #check if time is up
+        #check if time is up with milliseconds
+        #diff = datetime.datetime.now() - self.start
+        #if diff.seconds+diff.microseconds/1000000 > self.timeout:
+        #    return -1000000
+
         if time.time() > self.timeout:
             return -1000000
 
         #check if depth is reached
         if depthLeft == 0:
-            if self.color == 'white':
-                return self.evaluateBoard(gs)
-            else:
-                return -self.evaluateBoard(gs)
+            return self.evaluateBoard(gs)
 
 
         #check if there are more than one valid moves
@@ -155,15 +211,16 @@ class Agent:
         """
 
         #check if time is up
+        #diff = datetime.datetime.now() - self.start
+        #if diff.seconds+diff.microseconds/1000000 > self.timeout:
+        #    return -1000000
+
         if time.time() > self.timeout:
             return -1000000
 
         #check if depth is reached
         if depthLeft == 0:
-            if self.color == 'white':
-                return -self.evaluateBoard(gs)
-            else:
-                return self.evaluateBoard(gs)
+            return self.evaluateBoard(gs)
 
 
         #check if there are more than one valid moves
@@ -191,6 +248,82 @@ class Agent:
 
         return beta
 
+
+    def Quiesce(self, gs, alpha, beta):
+        stand_pat = self.evaluateBoard(gs)
+        if(stand_pat >= beta):
+            return beta
+        if(alpha < stand_pat):
+            alpha = stand_pat
+        #consider every capture
+        validMoves = gs.getValidMoves()
+        for move in validMoves:
+            if move.isCapture:
+                gs.makeMove(move)
+                score = -self.Quiesce(gs, -beta, -alpha)
+                gs.undoMove()
+                if(score >= beta):
+                    return beta
+                if(score > alpha):
+                    alpha = score
+        return alpha
+
+    def NegaMax(self, gs, alpha, beta, depth, color):
+
+        if time.time() > self.timeout:
+            return -1000000
+
+        if depth == 0:
+            return self.evaluateBoard(gs) * color
+            return self.Quiesce(gs, alpha, beta) * color
+
+        validMoves = gs.getValidMoves()
+
+        value = -1000000
+        for move in validMoves:
+            
+            gs.makeMove(move)
+
+            value = max(value, -self.NegaMax(gs, -beta, -alpha, depth-1, -color))
+            alpha = max(alpha, value)
+
+            gs.undoMove()
+
+            if alpha >= beta:
+                break
+        
+        return alpha
+
+
+    def new_alphabeta(self, gs, depth, alpha, beta, color):
+        if depth == 0:
+            return (gs.evaluateBoard(), None)
+        else: 
+            if color == 1: #maximizing player
+                bestmove = None
+                for move in gs.getValidMoves():
+                    gs.makeMove(move)
+                    score, move = self.new_alphabeta(gs, depth - 1, alpha, beta, -color)
+                    gs.undoMove()
+                    if score > alpha: # white maximizes her score
+                        alpha = score
+                        bestmove = move
+                        if alpha >= beta: # alpha-beta cutoff
+                            break
+                return alpha, bestmove
+            else:
+                bestmove = None
+                for move in gs.getValidMoves():
+                    gs.makeMove(move)
+                    score, move = self.new_alphabeta(gs, depth - 1, alpha, beta, -color)
+                    gs.undoMove()
+                    if score < beta: # black minimizes his score
+                        beta = score
+                        bestmove = move
+                        if alpha >= beta: # alpha-beta cutoff
+                            break
+                return beta, bestmove
+  
     def reverseArray(array):
         """
         Helper method to reverse an array
@@ -313,6 +446,7 @@ class Agent:
         #score += self.evalKingSafety(gs)
 
         #check material
+        #print(gs)
         score += self.evalMaterial(gs)
 
         #check for pieces activity
@@ -320,9 +454,12 @@ class Agent:
 
         #check for pawns structure
         #score += self.evalPawnsStructure(gs)
-        
 
-        return score
+        #check which color is to move
+        if gs.whiteToMove:
+            return score
+        else:
+            return -score
 
     def evalKingSafety(self, gs):
         """
@@ -426,7 +563,7 @@ class Agent:
         #check for each position of the board which piece is there and add by the value of the piece on that psoition by the evaluation array
         for i in range(0, 35):
             if gs.board[i] == '--':
-                break
+                continue
             elif gs.board[i] == 'bp':
                 scoreB += self.pawnSingleEval+self.pawnEvalBlack[i]
             elif gs.board[i] == 'bN':
@@ -438,15 +575,15 @@ class Agent:
             elif gs.board[i] == 'bK':
                 scoreB += self.kingSingleEval+self.kingEvalBlack[i]
             elif gs.board[i] == 'wp':
-                scoreW -= self.pawnSingleEval+self.pawnEvalWhite[i]
+                scoreW += self.pawnSingleEval+self.pawnEvalWhite[i]
             elif gs.board[i] == 'wN':
-                scoreW -= self.knightSingleEval+self.knightEvalWhite[i]
+                scoreW += self.knightSingleEval+self.knightEvalWhite[i]
             elif gs.board[i] == 'wB':
-                scoreW -= self.bishopSingleEval+self.bishopEvalWhite[i]
+                scoreW += self.bishopSingleEval+self.bishopEvalWhite[i]
             elif gs.board[i] == 'wR':
-                scoreW -= self.rookSingleEval+self.rookEvalWhite[i]
+                scoreW += self.rookSingleEval+self.rookEvalWhite[i]
             elif gs.board[i] == 'wK':
-                scoreW -= self.kingSingleEval+self.kingEvalWhite[i]
+                scoreW += self.kingSingleEval+self.kingEvalWhite[i]
 
         #return difference of material
         return scoreW-scoreB

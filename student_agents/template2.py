@@ -1,6 +1,7 @@
 import random
 import time
 import copy
+import datetime
 
 class Agent:
     def __init__(self):
@@ -64,15 +65,16 @@ class Agent:
         #alpha beta pruning to find best move
         
         self.nextMoveScore = None
-        self.currentDepth = 5
-        self.start = time.time()
-        self.timeout = self.start + 19
+        self.currentDepth = 3
+        self.start = datetime.datetime.now()
+        self.timeout = self.start + datetime.timedelta(seconds=19)
 
 
         #get all valid moves
         startValidMoves = gs.getValidMoves()
-        self.globalBestMove = None
-        self.globalBestScore = 0
+        #to prevent return None initializing with first move
+        self.globalBestMove = startValidMoves[0]
+        self.globalBestScore = -float('inf')
 
         for move in startValidMoves:
 
@@ -85,7 +87,7 @@ class Agent:
             #calculate score
             score = self.alphaBeta(copyGS, self.currentDepth, -float('inf'), float('inf'), True)
 
-            if score < self.globalBestScore:
+            if score > self.globalBestScore:
                 self.globalBestMove = move
                 self.globalBestScore = score
             
@@ -117,8 +119,8 @@ class Agent:
 
         """
         #check for timeout
-        if time.time() > self.timeout:
-            return 0
+        if datetime.datetime.now() > self.timeout:
+            return False
 
         #check for endgame
         if depth == 0:
@@ -141,16 +143,12 @@ class Agent:
 
                 #copy gamestate
                 copyGS = copy.deepcopy(gs)
-
                 #make move
                 copyGS.makeMove(move)
-
                 #recursive call
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, False)
-
                 #update score
                 bestScore = max(bestScore, score)
-
                 #update alpha
                 alpha = max(alpha, bestScore)
 
@@ -177,16 +175,12 @@ class Agent:
 
                 #copy gamestate
                 copyGS = copy.deepcopy(gs)
-
                 #make move
                 copyGS.makeMove(move)
-
                 #recursive call
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, True)
-
                 #update score
                 bestScore = min(bestScore, score)
-
                 #update beta
                 beta = min(beta, bestScore)
 
@@ -329,7 +323,7 @@ class Agent:
         #score += self.evalPawnsStructure(gs)
 
         #check which color is to move
-        if gs.whiteToMove:
+        if self.color == "white":
             return score
         else:
             return -score

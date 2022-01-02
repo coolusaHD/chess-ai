@@ -65,15 +65,16 @@ class Agent:
         #alpha beta pruning to find best move
         
         self.nextMoveScore = None
-        self.currentDepth = 5
+        self.currentDepth = 4
         self.start = datetime.datetime.now()
         self.timeout = self.start + datetime.timedelta(seconds=19)
 
 
         #get all valid moves
         startValidMoves = gs.getValidMoves()
-        self.globalBestMove = None
-        self.globalBestScore = 0
+        #to prevent return None initializing with first move
+        self.globalBestMove = startValidMoves[0]
+        self.globalBestScore = -float('inf')
 
         for move in startValidMoves:
 
@@ -86,7 +87,7 @@ class Agent:
             #calculate score
             score = self.alphaBeta(copyGS, self.currentDepth, -float('inf'), float('inf'), True)
 
-            if score < self.globalBestScore:
+            if score > self.globalBestScore:
                 self.globalBestMove = move
                 self.globalBestScore = score
             
@@ -119,11 +120,12 @@ class Agent:
         """
         #check for timeout
         if datetime.datetime.now() > self.timeout:
-            return 0
+            return False
 
         #check for endgame
         if depth == 0:
-            return self.evaluateBoard(gs)
+            #return self.evaluateBoard(gs)
+            return self.Quiesce(gs, alpha, beta)
 
         #check for maxPlayer
         if maxPlayer:
@@ -190,6 +192,45 @@ class Agent:
             return bestScore
             
 
+    def Quiesce(self, gs, alpha, beta):
+        """
+        Quiescence search
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to access board
+        alpha : float
+            alpha value
+        beta : float
+            beta value
+
+        Returns
+        -------
+        float
+
+        """
+        #check for timeout
+        if datetime.datetime.now() > self.timeout:
+            return False
+
+        stand_pat = self.evaluateBoard(gs)
+        if(stand_pat >= beta):
+            return beta
+        if(alpha < stand_pat):
+            alpha = stand_pat
+        #consider every capture
+        validMoves = gs.getValidMoves()
+        for move in validMoves:
+            if move.isCapture:
+                gs.makeMove(move)
+                score = -self.Quiesce(gs, -beta, -alpha)
+                gs.undoMove()
+                if(score >= beta):
+                    return beta
+                if(score > alpha):
+                    alpha = score
+        return alpha
 
     def reverseArray(array):
         """
@@ -309,7 +350,7 @@ class Agent:
         score = 0
         
         #check for king safety
-        #score += self.evalKingSafety(gs)
+        score += self.evalKingSafety(gs)
 
         #check material
         #print(gs)
@@ -322,7 +363,7 @@ class Agent:
         #score += self.evalPawnsStructure(gs)
 
         #check which color is to move
-        if gs.whiteToMove:
+        if self.color == "white":
             return score
         else:
             return -score
