@@ -450,7 +450,7 @@ class Agent:
         scoreB = 0
         #calculate material for white and black
         #check for each position of the board which piece is there and add by the value of the piece on that psoition by the evaluation array
-        for i in range(0, 35):
+        for i in range(36):
             if gs.board[i] == '--':
                 continue
             elif gs.board[i] == 'bp':

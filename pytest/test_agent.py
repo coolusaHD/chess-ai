@@ -1,6 +1,6 @@
 import pytest
-from chess_ai.ChessEngine import GameState, Move
-from chess_ai.student_agents.template import Agent
+from ChessEngine import GameState, Move
+from student_agents.template import Agent
 import copy
 
 

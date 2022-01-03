@@ -106,10 +106,6 @@ class Agent:
             self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
             
 
-
-
-
-
     def indciesOfFigures(self, string):
         """
         Helper method to get indices of figures
@@ -281,14 +277,12 @@ class Agent:
             #get item from table
             maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
 
-            if maybeSavedEntry != None:# and maybeSavedEntry['depth'] == depth:
-                #check for player
-                if (maybeSavedEntry['player'] == maxPlayer) or (maybeSavedEntry['player'] == maxPlayer):
-                    return maybeSavedEntry['score']
-                else:
-                    return self.Quiesce(gs, alpha, beta)
+            if maybeSavedEntry != None and (maybeSavedEntry['player'] == maxPlayer):# and maybeSavedEntry['depth'] == depth:
+                #print('returning from table')
+                return maybeSavedEntry['score']
             else:
                 return self.Quiesce(gs, alpha, beta)
+
 
         #check for maxPlayer
         if maxPlayer:
@@ -504,8 +498,7 @@ class Agent:
     def evaluateBoard(self, gs):
         """
         Evaluate the gamestate for the board 
-        score is the sum of the categories when calc evaluate White - evaluate Black
-        to get evaluation for black, multiply by -1
+        score is the sum of the categories 
 
         Parameters
         ----------
@@ -520,7 +513,7 @@ class Agent:
         score = 0
         
         #check for king safety
-        #score += self.evalKingSafety(gs)
+        score += self.evalKingSafety(gs)
 
         #check material
         #print(gs)
@@ -533,7 +526,7 @@ class Agent:
         #score += self.evalPawnsStructure(gs)
 
         #check which color is to move
-        if self.color == "white":
+        if gs.whiteToMove:
             return score
         else:
             return -score
@@ -552,7 +545,8 @@ class Agent:
         int
 
         """
-        score = 0
+        scoreW = 0
+        scoreB = 0
 
         #get position of kings
         
@@ -564,35 +558,19 @@ class Agent:
 
         
         #check for king safety
-        #if the own king is safe -> +1 if not -2
-        #if the enemy king is safe -> -1 if not +2
-        if gs.whiteToMove :
-            #white to move
-            # check enemy king 
-            if gs.squareUnderAttack(rowbK, colbK):
-                score += 2*self.pawnSingleEval
-            else:
-                score -= self.pawnSingleEval/2
-            #check own king
-            if gs.squareUnderAttack(rowwK, colwK):
-                score -= self.pawnSingleEval
-            else:
-                score += 2*self.pawnSingleEval
 
+        if gs.squareUnderAttack(rowbK, colbK):
+            scoreW += 2*self.pawnSingleEval
         else:
-            #black to move 
-            # check enemy king
-            if gs.squareUnderAttack(rowwK, colwK):
-                score += 2*self.pawnSingleEval
-            else:
-                score -= self.pawnSingleEval/2
-            #check own king
-            if gs.squareUnderAttack(rowbK, colbK):
-                score -= self.pawnSingleEval
-            else:
-                score += 2*self.pawnSingleEval
+            scoreW -= self.pawnSingleEval/2
+        
+        if gs.squareUnderAttack(rowwK, colwK):
+            scoreB += 2*self.pawnSingleEval
+        else:
+            scoreB -= self.pawnSingleEval/2
+
             
-        return score
+        return scoreW-scoreB
 
     def getPositionOfFigure(self, gs, figure):
         """
@@ -638,7 +616,7 @@ class Agent:
         scoreB = 0
         #calculate material for white and black
         #check for each position of the board which piece is there and add by the value of the piece on that psoition by the evaluation array
-        for i in range(0, 35):
+        for i in range(36):
             if gs.board[i] == '--':
                 continue
             elif gs.board[i] == 'bp':
