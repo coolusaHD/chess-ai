@@ -8,7 +8,7 @@
             "name": "Start AI",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceRoot}/ChessMain.py",
             "console": "integratedTerminal",
             "args": ["--agent1=Agent2", "--agent2=Agent1","--use_gui", "--verbose"],
             //"args": ["--agent1=Agent2", "--agent2=Agent1"],

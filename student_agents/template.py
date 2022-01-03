@@ -3,6 +3,8 @@ import time
 import copy
 import datetime
 
+
+
 class Agent:
     def __init__(self):
         self.move_queue = None
@@ -67,7 +69,7 @@ class Agent:
         #alpha beta pruning to find best move
         
         self.nextMoveScore = None
-        self.currentDepth = 4
+        self.currentDepth = 0
         self.start = datetime.datetime.now()
         self.timeout = self.start + datetime.timedelta(seconds=19)
 
@@ -80,24 +82,32 @@ class Agent:
         self.globalBestMove = startValidMoves[0]
         self.globalBestScore = -float('inf')
 
-        for move in startValidMoves:
 
-            #copy gamestate
-            copyGS = copy.deepcopy(gs)
+        #start iterative deepening 
+        while datetime.datetime.now() < self.timeout:
+            self.currentDepth += 1
+            print('start on depth: ', self.currentDepth)
 
-            #make move
-            copyGS.makeMove(move)
+            for move in startValidMoves:
+                
+                #copy gamestate
+                copyGS = copy.deepcopy(gs)
 
-            #calculate score
-            score = self.alphaBeta(copyGS, self.currentDepth, -float('inf'), float('inf'), True)
+                #make move
+                copyGS.makeMove(move)
+                #print('look for move:' + str(move.moveID) + 'and' + str(self.currentDepth))
+                #calculate score
+                score = self.alphaBeta(copyGS, self.currentDepth, -float('inf'), float('inf'), True)
 
-            if score > self.globalBestScore:
-                self.globalBestMove = move
-                self.globalBestScore = score
+                if score > self.globalBestScore:
+                    self.globalBestMove = move
+                    self.globalBestScore = score
+            #return best move as update_move
+            self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
             
-        
-        #return best move as update_move
-        self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
+
+
+
 
 
     def indciesOfFigures(self, string):
@@ -263,11 +273,22 @@ class Agent:
         #check for endgame
         if depth == 0:
             #return self.evaluateBoard(gs)
-            return self.Quiesce(gs, alpha, beta)
+            
+            #check if evaluated gamestate is in table
+            #hash actual board
+            actualBoardHashed = self.hashBoard(gs)
+            
+            #get item from table
+            maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
 
-        #check if evaluated gamestate is in table
-        if self.hashStorageTable[self.hashBoard()] != None:
-            return self.hashStorageTable[self.hashBoard()]['score']
+            if maybeSavedEntry != None:# and maybeSavedEntry['depth'] == depth:
+                #check for player
+                if (maybeSavedEntry['player'] == maxPlayer) or (maybeSavedEntry['player'] == maxPlayer):
+                    return maybeSavedEntry['score']
+                else:
+                    return self.Quiesce(gs, alpha, beta)
+            else:
+                return self.Quiesce(gs, alpha, beta)
 
         #check for maxPlayer
         if maxPlayer:
@@ -292,7 +313,8 @@ class Agent:
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, False)
 
                 #save score of gamestate in table
-                self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth}
+                self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth, 'player': maxPlayer}
+
                 #update score
                 bestScore = max(bestScore, score)
                 #update alpha
@@ -325,6 +347,10 @@ class Agent:
                 copyGS.makeMove(move)
                 #recursive call
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, True)
+
+                #save score of gamestate in table
+                self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth, 'player': maxPlayer}
+
                 #update score
                 bestScore = min(bestScore, score)
                 #update beta
@@ -494,7 +520,7 @@ class Agent:
         score = 0
         
         #check for king safety
-        score += self.evalKingSafety(gs)
+        #score += self.evalKingSafety(gs)
 
         #check material
         #print(gs)
@@ -952,6 +978,10 @@ class Agent:
         index += posList[1]*6
         return index
     
+
+
+
+
 
 
 
