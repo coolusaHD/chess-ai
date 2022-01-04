@@ -3,6 +3,9 @@ import time
 import copy
 import datetime
 
+alhpa_cutoff_counter = 0
+beta_cutoff_counter = 0
+
 class Agent:
     def __init__(self):
         self.move_queue = None
@@ -15,6 +18,11 @@ class Agent:
         self.globalBestMove = None
         self.globalBestScore = None
         self.nextMoveScore = None
+
+
+        self.alpha_cutoff_counter = 0
+        self.beta_cutoff_counter = 0
+        self.tableCounter = 0
 
     def get_move(self):
         move = None
@@ -52,8 +60,6 @@ class Agent:
         None but updates the returnQueue
 
         """
-
-        
         
         #get color of Agent
         if gs.whiteToMove:
@@ -65,9 +71,9 @@ class Agent:
         #alpha beta pruning to find best move
         
         self.nextMoveScore = None
-        self.currentDepth = 3
+        self.currentDepth = 0
         self.start = datetime.datetime.now()
-        self.timeout = self.start + datetime.timedelta(seconds=19)
+        self.timeout = self.start + datetime.timedelta(seconds=18)
 
 
         #get all valid moves
@@ -76,24 +82,35 @@ class Agent:
         self.globalBestMove = startValidMoves[0]
         self.globalBestScore = -float('inf')
 
-        for move in startValidMoves:
 
-            #copy gamestate
-            copyGS = copy.deepcopy(gs)
-
-            #make move
-            copyGS.makeMove(move)
-
-            #calculate score
-            score = self.alphaBeta(copyGS, self.currentDepth, -float('inf'), float('inf'), True)
-
-            if score > self.globalBestScore:
-                self.globalBestMove = move
-                self.globalBestScore = score
+        #start iterative deepening 
+        while datetime.datetime.now() < self.timeout:
+            self.currentDepth += 1
+            print('start on depth: ', self.currentDepth)
             
-        
+
+            for move in startValidMoves:
+                
+                #copy gamestate
+                copyGS = copy.deepcopy(gs)
+
+                #make move
+                copyGS.makeMove(move)
+                #print('look for move:' + str(move.moveID) + 'and' + str(self.currentDepth))
+                #calculate score
+                score = self.alphaBeta(copyGS, self.currentDepth, -float('inf'), float('inf'), True)
+
+                if score != None and score != float('inf') and score > self.globalBestScore:
+                    self.globalBestMove = move
+                    self.globalBestScore = score
+           
+            print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
+            #print('Table counter: ', self.tableCounter)
+
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
+            
+
 
 
     def alphaBeta(self, gs, depth, alpha, beta, maxPlayer):
@@ -118,101 +135,72 @@ class Agent:
         float
 
         """
-        #check for timeout
+                    #check for timeout
         if datetime.datetime.now() > self.timeout:
-            return False
+            return None
 
         #check for endgame
-        if depth == 0:
-            return self.Quiesce(gs, alpha, beta)
+        if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
+            return self.evaluateBoard(gs)
+        
 
         #check for maxPlayer
         if maxPlayer:
-            #get all valid moves
+
             validMoves = gs.getValidMoves()
 
-            #check for endgame
-            if len(validMoves) == 0:
-                return self.evaluateBoard(gs)
-
-            #check for maxPlayer
-            bestScore = -float('inf')
-
-            #iterate over all valid moves
             for move in validMoves:
 
                 #copy gamestate
                 copyGS = copy.deepcopy(gs)
+
                 #make move
                 copyGS.makeMove(move)
+
                 #recursive call
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, False)
-                #update score
-                bestScore = max(bestScore, score)
-                #update alpha
-                alpha = max(alpha, bestScore)
 
-                #check for beta cut off
-                if beta <= alpha:
-                    break
+                if score is None:
+                    return alpha
 
-            return bestScore
+                if score >= beta:
+                    self.beta_cutoff_counter += 1
+                    return beta
+
+                if score > alpha:
+                    alpha = score
+            
+            return alpha
 
         #check for minPlayer
         else:
-            #get all valid moves
+
             validMoves = gs.getValidMoves()
 
-            #check for endgame
-            if len(validMoves) == 0:
-                return self.evaluateBoard(gs)
-
-            #check for minPlayer
-            bestScore = float('inf')
-
-            #iterate over all valid moves
             for move in validMoves:
 
                 #copy gamestate
                 copyGS = copy.deepcopy(gs)
+
                 #make move
                 copyGS.makeMove(move)
+
                 #recursive call
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, True)
-                #update score
-                bestScore = min(bestScore, score)
-                #update beta
-                beta = min(beta, bestScore)
 
-                #check for beta cut off
-                if beta <= alpha:
-                    break
-
-            return bestScore
-            
-    def Quiesce(self, gs, alpha, beta, depth = 4):
-        stand_pat = self.evaluateBoard(gs)
-        if depth  == 0:
-            return stand_pat
-        if(stand_pat >= beta):
-            return beta
-        if(alpha < stand_pat):
-            alpha = stand_pat
-        #consider every capture
-        validMoves = gs.getValidMoves()
-        for move in validMoves:
-
-            if move.isCapture:
-                
-                gs.makeMove(move)
-                score = -self.Quiesce(gs, -beta, -alpha, depth - 1)
-                gs.undoMove()
-
-                if(score >= beta):
+                if score is None:
                     return beta
-                if(score > alpha):
-                    alpha = score
-        return alpha
+
+                if score <= alpha:
+                    self.alpha_cutoff_counter += 1
+                    return alpha
+
+                if score < beta:
+                    beta = score
+            
+            return beta
+
+        
 
     def reverseArray(array):
         """
@@ -230,20 +218,14 @@ class Agent:
         """
         return array[::-1]
 
-
     #total evaluation values per piece
-    pawnSingleEval = 10
-    rookSingleEval = 50
-    knightSingleEval = 40
-    bishopSingleEval = 30
-    kingSingleEval = 900
-
+    evaluationValuesOfPieces = {'p': 10, 'N': 40, 'B': 30, 'R': 50, 'K': 900}
 
     #Evaluation array for white pieces
     pawnEvalWhite = [
         0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
         5.0,  5.0,  5.0,  5.0,  5.0,  5.0,
-        0.5,  1.5,  2.5,  2.5,  1.5,  0.5,
+        1.5,  2.5,  3.5,  3.5,  2.5,  1.5,
         0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
         0.5,  1.0, -2.0, -2.0,  1.0,  0.5,
         0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
@@ -292,32 +274,16 @@ class Agent:
     bishopEvalBlack = reverseArray(bishopEvalWhite)
     kingEvalBlack = reverseArray(kingEvalWhite)
 
+    validationArrayOfPieces = {'wp': pawnEvalWhite, 'wN': knightEvalWhite, 'wB': bishopEvalWhite, 'wR': rookEvalWhite, 'wK': kingEvalWhite, 'bp': pawnEvalBlack, 'bN': knightEvalBlack, 'bB': bishopEvalBlack, 'bR': rookEvalBlack, 'bK': kingEvalBlack}
 
-    def getBoardFigure(self,gs, i):
-        """
-        Get the figure at the given position
+    checkEval = 100
+    checkMateEval = 10000
 
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to access board
-        i : int
-            index
-
-
-        Returns
-        -------
-        str
-
-        """
-
-        return gs.board[i]
 
     def evaluateBoard(self, gs):
         """
         Evaluate the gamestate for the board 
-        score is the sum of the categories when calc evaluate White - evaluate Black
-        to get evaluation for black, multiply by -1
+        score is the sum of the categories 
 
         Parameters
         ----------
@@ -331,106 +297,21 @@ class Agent:
         """
         score = 0
         
-        #check for king safety
-        #score += self.evalKingSafety(gs)
+        #check for good checks for white
+        #score += self.checkForGoodChecks(gs)
 
         #check material
         #print(gs)
         score += self.evalMaterial(gs)
 
-        #check for pieces activity
-        #score += self.evalPiecesActivity(gs)
-
-        #check for pawns structure
-        #score += self.evalPawnsStructure(gs)
 
         #check which color is to move
-        if self.color == "white":
+        #because after move gs.whiteToMove is switched
+        if self.color == 'white':
             return score
         else:
             return -score
 
-    def evalKingSafety(self, gs):
-        """
-        Evaluate the king safety 
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to be evaluated
-
-        Returns
-        -------
-        int
-
-        """
-        score = 0
-
-        #get position of kings
-        
-        whiteKingPos = gs.blackKingLocation
-        blackKingPos = gs.blackKingLocation
-
-        rowbK, colbK = whiteKingPos[0], whiteKingPos[1]
-        rowwK, colwK = blackKingPos[0], blackKingPos[1]
-
-        
-        #check for king safety
-        #if the own king is safe -> +1 if not -2
-        #if the enemy king is safe -> -1 if not +2
-        if gs.whiteToMove :
-            #white to move
-            # check enemy king 
-            if gs.squareUnderAttack(rowbK, colbK):
-                score += 2*self.pawnSingleEval
-            else:
-                score -= self.pawnSingleEval/2
-            #check own king
-            if gs.squareUnderAttack(rowwK, colwK):
-                score -= self.pawnSingleEval
-            else:
-                score += 2*self.pawnSingleEval
-
-        else:
-            #black to move 
-            # check enemy king
-            if gs.squareUnderAttack(rowwK, colwK):
-                score += 2*self.pawnSingleEval
-            else:
-                score -= self.pawnSingleEval/2
-            #check own king
-            if gs.squareUnderAttack(rowbK, colbK):
-                score -= self.pawnSingleEval
-            else:
-                score += 2*self.pawnSingleEval
-            
-        return score
-
-    def getPositionOfFigure(self, gs, figure):
-        """
-        Get the position of the figure
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to access board
-        figure : str
-            figure to find position of
-
-        Returns
-        -------
-        list with tupels (r,c)
-            
-
-        """
-        list = []
-        for i in range(0, 35):
-            if gs.board[i] == figure:
-                # row = i % 6  -> modulo 6
-                # col = i // 6  -> divide by 6 without remainder
-                list.append((i % 6, i // 6))
-
-        return list
 
     def evalMaterial(self, gs):
         """
@@ -446,40 +327,34 @@ class Agent:
         int
 
         """
-        scoreW = 0
-        scoreB = 0
-        #calculate material for white and black
-        #check for each position of the board which piece is there and add by the value of the piece on that psoition by the evaluation array
+        score = 0
+
         for i in range(36):
-            if gs.board[i] == '--':
+            figure = gs.board[i]
+            if figure[0] == 'b':
+                factor = -1
+            else:
+                factor = 1
+
+            if figure == '--':
                 continue
-            elif gs.board[i] == 'bp':
-                scoreB += self.pawnSingleEval+self.pawnEvalBlack[i]
-            elif gs.board[i] == 'bN':
-                scoreB += self.knightSingleEval+self.knightEvalBlack[i]
-            elif gs.board[i] == 'bB':
-                scoreB += self.bishopSingleEval+self.bishopEvalBlack[i]
-            elif gs.board[i] == 'bR':
-                scoreB += self.rookSingleEval+self.rookEvalBlack[i]
-            elif gs.board[i] == 'bK':
-                scoreB += self.kingSingleEval+self.kingEvalBlack[i]
-            elif gs.board[i] == 'wp':
-                scoreW += self.pawnSingleEval+self.pawnEvalWhite[i]
-            elif gs.board[i] == 'wN':
-                scoreW += self.knightSingleEval+self.knightEvalWhite[i]
-            elif gs.board[i] == 'wB':
-                scoreW += self.bishopSingleEval+self.bishopEvalWhite[i]
-            elif gs.board[i] == 'wR':
-                scoreW += self.rookSingleEval+self.rookEvalWhite[i]
-            elif gs.board[i] == 'wK':
-                scoreW += self.kingSingleEval+self.kingEvalWhite[i]
+            elif figure[1] == 'p':
+                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
+            elif figure[1] == 'N':
+                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
+            elif figure[1] == 'B':
+                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
+            elif figure[1] == 'R':
+                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
+            elif figure[1] == 'K':
+                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
 
         #return difference of material
-        return scoreW-scoreB
+        return score
 
-    def evalPiecesActivity(self, gs):
+    def checkForGoodChecks(self, gs):
         """
-        Evaluate the pieces activity
+        Check for checks on board for current player
 
         Parameters
         ----------
@@ -491,305 +366,22 @@ class Agent:
         int
 
         """
+
         score = 0
-        #check for pawn activity
-        score += self.evalPawnActivity(gs)
-        #check for knight activity
-        score += self.evalKnightActivity(gs)
-        #check for bishop activity
-        score += self.evalBishopActivity(gs)
-        #check for rook activity
-        score += self.evalRookActivity(gs)
 
-        return score
-
-    def evalPawnActivity(self, gs):
-        """
-        Evaluate the pawn activity
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to be evaluated
-
-        Returns
-        -------
-        int: score
-
-        """
-        score = 0
-        #check for pawn activity
-
-        #get position of white pawns
-        if gs.whiteToMove:
-            listOfPawnPos = self.getPositionOfFigure(gs, 'wP')
-        else:
-            listOfPawnPos = self.getPositionOfFigure(gs, 'bP')
-        #check if any pawn can be attacked by any enemy
-        for pawnPos in listOfPawnPos:
-            if gs.squareUnderAttack(pawnPos[1], pawnPos[0]):
-                score -= self.pawnSingleEval/5
-
-        return score
-
-    def evalKnightActivity(self,gs):
-        """
-        Evaluate the knight activity
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to be evaluated
-
-        Returns
-        -------
-        int: score
-
-        """
-        score = 0
-        #check for knight activity
-        #get position of white knights
-        if gs.whiteToMove:
-            listOfKnightPos = self.getPositionOfFigure(gs, 'wN')
-        else:
-            listOfKnightPos = self.getPositionOfFigure(gs, 'bN')
-        #check if any knight can be attacked by any enemy
-        for knightPos in listOfKnightPos:
-            if gs.squareUnderAttack(knightPos[1], knightPos[0]):
-                score -= self.knightSingleEval/4
-
-        return score
-
-    def evalBishopActivity(self, gs):
-        """
-        Evaluate the bishop activity
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to be evaluated
-
-        Returns
-        -------
-        int: score
-
-        """
-        score = 0
-        #check for bishop activity
-        #get position of white bishops
-        if gs.whiteToMove:
-            listOfBishopPos = self.getPositionOfFigure(gs, 'wB')
-        else:
-            listOfBishopPos = self.getPositionOfFigure(gs, 'bB')
-        #check if any bishop can be attacked by any enemy
-        for bishopPos in listOfBishopPos:
-            if gs.squareUnderAttack(bishopPos[1], bishopPos[0]):
-                score -= self.bishopSingleEval/3
-
-        return score
-
-    def evalRookActivity(self, gs):
-        """
-        Evaluate the rook activity
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to be evaluated
-
-        Returns
-        -------
-        int: score
-
-        """
-        score = 0
-        #check for rook activity
-        #get position of white rooks
-        if gs.whiteToMove:
-            listOfRookPos = self.getPositionOfFigure(gs, 'wR')
-        else:
-            listOfRookPos = self.getPositionOfFigure(gs, 'bR')
-        #check if any rook can be attacked by any enemy
-        for rookPos in listOfRookPos:
-            if gs.squareUnderAttack(rookPos[1], rookPos[0]):
-                score -= self.rookSingleEval/2
-
-        return score
-
-    def evalKingActivity(self, gs):
-        """
-        Evaluate the king activity
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to be evaluated
-
-        Returns
-        -------
-        int: score
-
-        """
-        score = 0
-        #check for king activity
-        #get position of white king
-        if gs.whiteToMove:
-            listOfKingPos = self.getPositionOfFigure(gs, 'wK')
-        else:
-            listOfKingPos = self.getPositionOfFigure(gs, 'bK')
-        #check if any king can be attacked by any enemy
-        for kingPos in listOfKingPos:
-            if gs.squareUnderAttack(kingPos[1], kingPos[0]):
-                score -= self.kingSingleEval
-
-        return score
-
-    def evalPawnsStructure(self, gs):
-        """
-        Evaluate the pawn structure
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to be evaluated
-
-        Returns
-        -------
-        int: score
-
-        """
-        scoreW = 0
-        scoreB = 0
-        #check for pawn structure
-        #get position of white pawns
-        if gs.whiteToMove:
-            listOfPawnPos = self.getPositionOfFigure(gs, 'wP')
-            #PawnPos (r,c)
-            #check isolated pawns
-            #->if there is no pawn diagonal behind, it is a backward pawn
-            for pawnPos in listOfPawnPos:
-                if pawnPos[0]==6:
-                    scoreW += self.pawnSingleEval/6
-                elif pawnPos[0] >= 5:
-                    digonalLeftPos = (pawnPos[0]-1, pawnPos[1]-1)
-                    digonalRightPos = (pawnPos[0]+1, pawnPos[1]-1)
-                    diagonalLeftPosIndex = self.getIndexOfPosition(gs, digonalLeftPos)
-                    diagonalRightPosIndex = self.getIndexOfPosition(gs, digonalRightPos)
-
-                    if not (gs.board[diagonalLeftPosIndex] == 'wp' or gs.board[diagonalRightPosIndex] == 'wp'):
-                        scoreW -= self.pawnSingleEval/3
-                    
-                
-            #check pawn chain
-            #PawnPos (r,c)
-            #->if there is are multiple pawns in a diagonal, it is a pawn chain
-            # TODO: diagonal pawn check for overflow in position row an column
-            for pawnPos in listOfPawnPos:
-                if pawnPos[0] != 0:
-                    digonalLeft1Pos = (pawnPos[0]-1, pawnPos[1]-1)
-                    digonalLeft2Pos = (pawnPos[0]-2, pawnPos[1]-2)
-                    digonalRight1Pos = (pawnPos[0]+1, pawnPos[1]-1)
-                    digonalRight2Pos = (pawnPos[0]+2, pawnPos[1]-2)
-                    diagonalLeft1PosIndex = self.getIndexOfPosition(gs, digonalLeft1Pos)
-                    diagonalLeft2PosIndex = self.getIndexOfPosition(gs, digonalLeft2Pos)
-                    diagonalRight1PosIndex = self.getIndexOfPosition(gs, digonalRight1Pos)
-                    diagonalRight2PosIndex = self.getIndexOfPosition(gs, digonalRight2Pos)
-
-                    #check for right diagonal chain
-                    if gs.board[diagonalLeft1PosIndex] == 'wp' and gs.board[diagonalLeft2PosIndex] == 'wp':
-                        scoreW += self.pawnSingleEval/4
-                    #check for left diagonal chain
-                    if gs.board[diagonalRight1PosIndex] == 'wp' and gs.board[diagonalRight2PosIndex] == 'wp':
-                        scoreW += self.pawnSingleEval/4
-                    
-                    #check for double pawn chain
-                    if gs.board[diagonalLeft1PosIndex] == 'wp' or  gs.board[diagonalRight1PosIndex] == 'wp':
-                        scoreW += self.pawnSingleEval/4
-
-                    #check for spike chain
-                    if gs.board[diagonalLeft1PosIndex] == 'wp' and gs.board[diagonalRight1PosIndex] == 'wp':
-                        scoreW += self.pawnSingleEval/2
-
-
-
-        else: #black pawns
-            listOfPawnPos = self.getPositionOfFigure(gs, 'bP')
-        
-            #check isolated pawns
-            #->if there is no pawn diagonal behind, it is a backward pawn
-            #PawnPos (r,c)
-            for pawnPos in listOfPawnPos:
-                if pawnPos[0]==0:
-                    scoreB += self.pawnSingleEval/6
-                elif pawnPos[0] >= 2:
-                    digonalLeftPos = (pawnPos[0]-1, pawnPos[1]+1)
-                    digonalRightPos = (pawnPos[0]+1, pawnPos[1]+1)
-                    diagonalLeftPosIndex = self.getIndexOfPosition(gs, digonalLeftPos)
-                    diagonalRightPosIndex = self.getIndexOfPosition(gs, digonalRightPos)
-
-                    if not (gs.board[diagonalLeftPosIndex] == 'wp' or gs.board[diagonalRightPosIndex] == 'wp'):
-                        scoreB -= self.pawnSingleEval/3
-                    
-                
-            #check pawn chain
-            #PawnPos (r,c)
-            #->if there is are multiple pawns in a diagonal, it is a pawn chain
-            for pawnPos in listOfPawnPos:
-                if pawnPos[0] != 0:
-                    digonalLeft1Pos = (pawnPos[0]-1, pawnPos[1]+1)
-                    digonalLeft2Pos = (pawnPos[0]-2, pawnPos[1]+2)
-                    digonalRight1Pos = (pawnPos[0]+1, pawnPos[1]+1)
-                    digonalRight2Pos = (pawnPos[0]+2, pawnPos[1]+2)
-                    diagonalLeft1PosIndex = self.getIndexOfPosition(gs, digonalLeft1Pos)
-                    diagonalLeft2PosIndex = self.getIndexOfPosition(gs, digonalLeft2Pos)
-                    diagonalRight1PosIndex = self.getIndexOfPosition(gs, digonalRight1Pos)
-                    diagonalRight2PosIndex = self.getIndexOfPosition(gs, digonalRight2Pos)
-
-                    #check for right diagonal chain
-                    if gs.board[diagonalLeft1PosIndex] == 'wp' and gs.board[diagonalLeft2PosIndex] == 'wp':
-                        scoreB += self.pawnSingleEval/4
-                    #check for left diagonal chain
-                    if gs.board[diagonalRight1PosIndex] == 'wp' and gs.board[diagonalRight2PosIndex] == 'wp':
-                        scoreB += self.pawnSingleEval/4
-                    
-                    #check for double pawn chain
-                    if gs.board[diagonalLeft1PosIndex] == 'wp' or  gs.board[diagonalRight1PosIndex] == 'wp':
-                        scoreB += self.pawnSingleEval/4
-
-                    #check for spike chain
-                    if gs.board[diagonalLeft1PosIndex] == 'wp' and gs.board[diagonalRight1PosIndex] == 'wp':
-                        scoreB += self.pawnSingleEval/2
-
-
-        #calculate score
-        score = scoreW - scoreB
+        if gs.inCheck:
+            score -= self.checkEval
+        if gs.checkMate:
+            score -= self.checkmateEval
 
         return score
 
 
-    def getIndexOfPosition(gs, posList):
-        """
-        Get the index of a position in the board
 
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to be evaluated
-        posList : list
-            list of position (r,c)
 
-        Returns
-        -------
-        int: index
 
-        """
-        index = 0
-        #add row
-        index += posList[0]
-        #add col
-        index += posList[1]*6
-        return index
-    
+
+
 
 
 

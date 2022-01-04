@@ -137,7 +137,37 @@ def test_evaluateBoard():
     print('gegen')
     print(eval4)
 
-    assert eval3>eval4 , "Evaluation for color change are wrong" 
+
+def test_firstMove():
+
+    gs = GameState()
+
+    gs.board = ['bR', 'bB', '--', 'bK', 'bB', 'bR',
+                'bp', 'bp', 'bp', 'bp', 'bp', 'bp',
+                '--', 'wB', '--', '--', '--', '--',
+                '--', '--', '--', 'wp', '--', '--',
+                'wp', 'wp', 'wp', '--', 'wp', 'wp',
+                'wR', 'wB', 'wN', 'wK', '--', 'wR']
+
+    agent.color = 'black'
+    eval1 = agent.evaluateBoard(gs)
+
+    gs.board = ['bR', 'bB', '--', 'bK', 'bB', 'bR',
+                'bp', 'bp', '--', 'bp', 'bp', 'bp',
+                '--', 'bp', '--', '--', '--', '--',
+                '--', '--', '--', 'wp', '--', '--',
+                'wp', 'wp', 'wp', '--', 'wp', 'wp',
+                'wR', 'wB', 'wN', 'wK', '--', 'wR']
+
+    agent.color = 'black'
+    eval2 = agent.evaluateBoard(gs)
+
+    print(eval1)
+    print('gegen')
+    print(eval2)
+
+    assert eval1 < eval2, "Evaluation for first move are wrong" 
+
 
 
 

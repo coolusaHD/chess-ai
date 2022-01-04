@@ -25,6 +25,7 @@ class Agent:
 
         self.alpha_cutoff_counter = 0
         self.beta_cutoff_counter = 0
+        self.tableCounter = 0
 
     def get_move(self):
         move = None
@@ -91,7 +92,7 @@ class Agent:
         while datetime.datetime.now() < self.timeout:
             self.currentDepth += 1
             print('start on depth: ', self.currentDepth)
-            print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
+            
 
             for move in startValidMoves:
                 
@@ -104,11 +105,15 @@ class Agent:
                 #calculate score
                 score = self.alphaBeta(copyGS, self.currentDepth, -float('inf'), float('inf'), True)
 
-                if score > self.globalBestScore:
+                if score != None and score != float('inf') and score > self.globalBestScore:
                     self.globalBestMove = move
                     self.globalBestScore = score
-            #return best move as update_move
-            self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
+           
+            print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
+            #print('Table counter: ', self.tableCounter)
+
+        #return best move as update_move
+        self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
             
 
     def indciesOfFigures(self, string):
@@ -267,37 +272,44 @@ class Agent:
         float
 
         """
-        #check for timeout
-        if datetime.datetime.now() > self.timeout:
-            return False
-
-        #check for endgame
-        if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
+        
             
-            #check if evaluated gamestate is in table
-            #hash actual board
-            actualBoardHashed = self.hashBoard(gs)
-            
-            #get item from table
-            maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
+        #    #check if evaluated gamestate is in table
+        #    #hash actual board
+        #    actualBoardHashed = self.hashBoard(gs)
+        #    
+        #    #get item from table
+        #    maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
+#
+        #    if maybeSavedEntry != None:# and (maybeSavedEntry['player'] == maxPlayer): and maybeSavedEntry['depth'] == depth:
+        #        #print('returning from table')
+        #        #self.tableCounter += 1
+        #        return maybeSavedEntry['score']
+        #    else:
+        #        return self.Quiesce(gs, alpha, beta)
 
-            if maybeSavedEntry != None:# and (maybeSavedEntry['player'] == maxPlayer): and maybeSavedEntry['depth'] == depth:
-                #print('returning from table')
-                return maybeSavedEntry['score']
-            else:
-                return self.Quiesce(gs, alpha, beta)
+
 
         #get all valid moves
         validMoves = gs.getValidMoves()
-        #move ordering
-        #validMoves = self.moveOrdering(validMoves, gs)
 
+          #check for timeout
+        if datetime.datetime.now() > self.timeout:
+            return None
+         #check for endgame
+        if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
+            return self.evaluateBoard(gs)
 
         #check for maxPlayer
         if maxPlayer:
 
+         
+            #move ordering for maxPlayer
+            #validMoves = self.moveOrdering(validMoves, gs, maxPlayer)
+
             #check for maxPlayer
-            bestScore = -float('inf')
+            #bestScore = -float('inf')
+            score = -float('inf')
 
             #iterate over all valid moves
             for move in validMoves:
@@ -310,25 +322,32 @@ class Agent:
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, False)
 
                 #save score of gamestate in table
-                self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth, 'player': maxPlayer}
+                #self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth, 'player': maxPlayer}
 
                 #update score
-                bestScore = max(bestScore, score)
+                #bestScore = max(bestScore, score)
                 #update alpha
-                alpha = max(alpha, bestScore)
+                #alpha = max(alpha, bestScore)
+                if score is None:
+                    return alpha
+                alpha = max(alpha, score)
 
                 #check for beta cut off
                 if beta <= alpha:
                     self.beta_cutoff_counter += 1
                     break
 
-            return bestScore
+            return score
 
         #check for minPlayer
         else:
 
+            #move ordering for minPlayer
+            #validMoves = self.moveOrdering(validMoves, gs, maxPlayer)
+
             #check for minPlayer
-            bestScore = float('inf')
+            #bestScore = float('inf')
+            score = float('inf')
 
             #iterate over all valid moves
             for move in validMoves:
@@ -341,19 +360,21 @@ class Agent:
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, True)
 
                 #save score of gamestate in table
-                self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth, 'player': maxPlayer}
+                #self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth, 'player': maxPlayer}
 
                 #update score
-                bestScore = min(bestScore, score)
+                #bestScore = min(bestScore, score)
                 #update beta
-                beta = min(beta, bestScore)
+                if score is None:
+                    return beta
+                beta = min(beta, score)
 
                 #check for alpha cut off
                 if beta <= alpha:
-                    self.alpha_cutoff_counter
+                    self.alpha_cutoff_counter += 1
                     break
 
-            return bestScore 
+            return score 
 
     def Quiesce(self, gs, alpha, beta):
         """
@@ -472,7 +493,7 @@ class Agent:
     checkEval = 100
     checkMateEval = 10000
 
-    def moveOrdering(self, moves, gs):
+    def moveOrdering(self, moves, gs, maxPlayer):
         """
         Helper method to order moves based on their evaluation
 
@@ -480,6 +501,10 @@ class Agent:
         ----------
         moves : Moves
             list of moves to be ordered
+        gs : GameState
+            current game state
+        maxPlayer : bool
+            true if max iteration, false if min iteration
 
         Returns
         -------
@@ -507,15 +532,15 @@ class Agent:
             orderedMoves.append((score, move))
 
         #sort moves by highest score
-        orderedMoves.sort(key=lambda x: x[0], reverse=True)
+        orderedMoves.sort(key=lambda x: x[0], reverse = maxPlayer)
 
-        #split list into two lists
-        orderedMoves1 = orderedMoves[:len(orderedMoves)//2]
-        orderedMoves2 = orderedMoves[len(orderedMoves)//2:]
-        #reverse second list
-        orderedMoves2 = orderedMoves2[::-1]
-        #append both lists
-        orderedMoves = orderedMoves1 + orderedMoves2
+        # #split list into two lists
+        # orderedMoves1 = orderedMoves[:len(orderedMoves)//2]
+        # orderedMoves2 = orderedMoves[len(orderedMoves)//2:]
+        # #reverse second list
+        # orderedMoves2 = orderedMoves2[::-1]
+        # #append both lists
+        # orderedMoves = orderedMoves1 + orderedMoves2
 
         #return only moves
         return [move for score, move in orderedMoves]
@@ -538,7 +563,7 @@ class Agent:
         score = 0
         
         #check for good checks for white
-        score += self.checkForGoodChecks(gs)
+        #score += self.checkForGoodChecks(gs)
 
         #check material
         #print(gs)
@@ -547,7 +572,8 @@ class Agent:
 
 
         #check which color is to move
-        if gs.whiteToMove:
+        #because after move gs.whiteToMove is switched
+        if self.color == 'white':
             return score
         else:
             return -score
