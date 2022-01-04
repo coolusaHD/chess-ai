@@ -2,6 +2,7 @@ import pytest
 from ChessEngine import GameState, Move
 from student_agents.template import Agent
 import copy
+import time
 
 
     ##TESTING###
@@ -136,7 +137,33 @@ def test_evaluateBoard():
     print('gegen')
     print(eval4)
 
-    assert eval3>eval4 , "Evaluation for color change are wrong"
+    assert eval3>eval4 , "Evaluation for color change are wrong" 
+
+
+
+def test_evaluationTime():
+
+    count = 0
+    gs = GameState()    
+    
+    gs.board = ['bR', 'bB', 'bN', 'bK', 'bB', 'bR',
+                'bp', 'bp', 'bp', 'bp', 'bp', 'bp',
+                '--', '--', '--', '--', '--', '--',
+                '--', '--', '--', '--', '--', '--',
+                'wp', 'wp', 'wp', 'wp', 'wp', 'wp',
+                'wR', 'wB', 'wN', 'wK', 'wB', 'wR']
+
+    gs.makeMove(gs.getValidMoves()[0])
+
+    start = time.time() 
+    while time.time() - start < 1:
+
+        agent.evaluateBoard(gs)
+        count +=1
+
+    print(count)
+    assert count > 7000, "Evaluation is too slow"
+
 
 
 
