@@ -40,26 +40,26 @@ class GameState:
                       'wR', 'wB', 'wN', 'wK', 'wB', 'wR']
 
         # for testing interesting positions
-        """
-        self.board = ['bR', '--', '--', 'bK', '--', 'bR',
-                      'bp', 'bp', 'bp', '--', 'bp', 'bp',
-                      '--', 'wp', '--', 'bp', 'wp', '--',
-                      '--', '--', '--', 'wp', '--', 'wp',
-                      'wp', 'wp', '--', '--', 'wp', 'wp',
-                      'wR', 'wB', '--', 'wK', '--', 'wR']
-        """
+
+        self.board = ['bR', '--', '--', '--', '--', '--',
+                      '--', '--', 'bK', '--', '--', '--',
+                      '--', '--', '--', 'bp', '--', '--',
+                      '--', '--', 'bB', 'wp', 'bp', '--',
+                      'bp', '--', 'wK', '--', 'wp', '--',
+                      'bR', '--', '--', '--', '--', '--']
+
         # to flip the board:
-        """
-        # for j in range(len(self.board)):
-        #     print('b' in self.board[j])
-        #     if 'b' in self.board[j]:
-        #         self.board[j] = self.board[j].replace('b', 'w')
-        #     elif 'w' in self.board[j]:
-        #         self.board[j] = self.board[j].replace('w', 'b')
-        # self.board.reverse()
-        # for j in range(len(self.board) // 6):
-        #     print(self.board[j * 6: (j*6)+5])
-        """
+
+        for j in range(len(self.board)):
+            print('b' in self.board[j])
+            if 'b' in self.board[j]:
+                self.board[j] = self.board[j].replace('b', 'w')
+            elif 'w' in self.board[j]:
+                self.board[j] = self.board[j].replace('w', 'b')
+        self.board.reverse()
+        for j in range(len(self.board) // 6):
+            print(self.board[j * 6: (j*6)+5])
+
 
         self.moveFunctions = {'p': self.getPawnMoves, 'R': self.getRookMoves, 'N': self.getKnightMoves,
                               'B': self.getBishopMoves, 'K': self.getKingMoves, 'Q': self.getQueenMoves}
@@ -88,6 +88,7 @@ class GameState:
         self.staleMate = False
         self.draw = False
         self.threefold = False
+        self.illegal_move_done = False
         self.game_log = {}
 
     def __str__(self):
