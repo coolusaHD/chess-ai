@@ -63,10 +63,10 @@ def test_hashWithMultipeMoves(gs1, gs2):
 
     assert hashStart1 == hashStart2, "Start Hashes are not equal"
 
-    print('start')
+    #print('start')
 
-    print(gs1.board)
-    print(gs2.board)
+    #print(gs1.board)
+    #print(gs2.board)
 
 
     move1 = Move((1,0), (2,0), gs1.board)
@@ -79,10 +79,10 @@ def test_hashWithMultipeMoves(gs1, gs2):
     gs2.makeMove(move2)
     gs2.makeMove(move1)
 
-    print('after')
+    #print('after')
 
-    print(gs1.board)
-    print(gs2.board)
+    #print(gs1.board)
+    #print(gs2.board)
 
     hash1 = agent.hashBoard(gs1)
     hash2 = agent.hashBoard(gs2)
@@ -195,6 +195,41 @@ def test_evaluationTime():
     assert count > 7000, "Evaluation is too slow"
 
 
+def test_hashingMove():
+
+    agent.__init__()
+
+    gs = GameState()
+
+    gs.board = ['bR', 'bB', 'bN', 'bK', 'bB', 'bR',
+                'bp', 'bp', 'bp', 'bp', 'bp', 'bp',
+                '--', '--', '--', '--', '--', '--',
+                '--', '--', '--', '--', '--', '--',
+                'wp', 'wp', 'wp', 'wp', 'wp', 'wp',
+                'wR', 'wB', 'wN', 'wK', 'wB', 'wR']
+
+    hash1 = agent.hashBoard(gs)
+
+    move = gs.getValidMoves()[0]
+
+    agent.hashedBoard = agent.hashBoard(gs)
+
+    agent.updatezTableFromMove(move)
+
+    hash2 = agent.hashedBoard
+
+    gs.board = ['bR', 'bB', 'bN', 'bK', 'bB', 'bR',
+                'bp', 'bp', 'bp', 'bp', 'bp', 'bp',
+                '--', '--', '--', '--', '--', '--',
+                '--', '--', '--', '--', '--', '--',
+                'wp', 'wp', 'wp', 'wp', 'wp', 'wp',
+                'wR', 'wB', 'wN', 'wK', 'wB', 'wR']
+
+    gs.makeMove(move)
+
+    hash3 = agent.hashBoard(gs)
+
+    assert hash2 == hash3, "Hashes after move are not equal"
 
 
 

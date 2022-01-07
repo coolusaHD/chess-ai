@@ -187,11 +187,10 @@ class Agent:
         """
         hash = 0
         for i in range(36):
-                if gs.board[i] != '--':
-                    hash ^= self.zobristTable[i][self.indciesOfFigures(gs.board[i])]
+            hash ^= self.zobristTable[i][self.indciesOfFigures(gs.board[i])]
         return hash
 
-    def updatezTableFromMove(self, gs, move):
+    def updatezTableFromMove(self, hash, move):
         """
         Helper method to update the zobrist table after a move
 
@@ -204,15 +203,28 @@ class Agent:
 
         Returns
         -------
-        None
+        new hash
 
         """
         #update zobrist table from start and end position of move
         startPos = move.startRC
         endPos = move.endRC
         figure = move.pieceMoved
-        self.hashedBoard ^= self.zobristTable[startPos][self.indciesOfFigures('--')]
-        self.hashedBoard ^= self.zobristTable[endPos][self.indciesOfFigures(figure)]
+        capturedFigure = move.pieceCaptured
+
+        #print('capturedFig',capturedFigure)
+        #print('hb', hash)
+
+        #remove moving figurefrom start pos
+        hash ^= self.zobristTable[startPos][self.indciesOfFigures(figure)]
+        #add empty field at start pos
+        hash ^= self.zobristTable[startPos][self.indciesOfFigures('--')]
+        #remove capturing figure
+        hash ^= self.zobristTable[endPos][self.indciesOfFigures(capturedFigure)]
+        #adding moving figure to his new position
+        hash ^= self.zobristTable[endPos][self.indciesOfFigures(figure)]
+
+        return hash
 
     def alphaBeta(self, gs, depth, alpha, beta, maxPlayer):
         """
@@ -357,12 +369,13 @@ class Agent:
 
         #check if evaluated gamestate is in table
         #hash actual board
-        actualBoardHashed = self.hashBoard(gs)
+        
+        actualBoardHashed = self.updatezTableFromMove(self.hashedBoard ,gs.moveLog[-1])
         
         #get item from table
         maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
 
-        if maybeSavedEntry != None:# and (maybeSavedEntry['player'] == maxPlayer): and maybeSavedEntry['depth'] == depth:
+        if maybeSavedEntry != None:
             #print('returning from table')
             self.tableCounter += 1
             stand_pat = maybeSavedEntry['score']
