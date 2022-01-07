@@ -110,7 +110,7 @@ class Agent:
                     self.globalBestScore = score
            
             print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
-            #print('Table counter: ', self.tableCounter)
+            print('Table counter: ', self.tableCounter)
 
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
@@ -131,28 +131,10 @@ class Agent:
             index of figure
 
         """
-        if string == 'bp':
-            return 0
-        elif string == 'bN':
-            return 1
-        elif string == 'bB':
-            return 2
-        elif string == 'bR':
-            return 3
-        elif string == 'bK':
-            return 4
-        elif string == 'wp':
-            return 5
-        elif string == 'wN':
-            return 6
-        elif string == 'wB':
-            return 7
-        elif string == 'wR':
-            return 8
-        elif string == 'wK':
-            return 9
-        else:
-            return -1
+
+        dictOfFigures = {'bp': 0, 'bN': 1, 'bB': 2, 'bR': 3, 'bK': 4, 'wp': 5, 'wN': 6, 'wB': 7, 'wR': 8, 'wK': 9, '--': 10}
+
+        return dictOfFigures[string]
         
     def figureStringFromIndicies(self, num):
         """
@@ -168,28 +150,10 @@ class Agent:
         str
 
         """
-        if num == 0:
-            return 'bp'
-        elif num == 1:
-            return 'bN'
-        elif num == 2:
-            return 'bB'
-        elif num == 3:
-            return 'bR'
-        elif num == 4:
-            return 'bK'
-        elif num == 5:
-            return 'wp'
-        elif num == 6:
-            return 'wN'
-        elif num == 7:
-            return 'wB'
-        elif num == 8:
-            return 'wR'
-        elif num == 9:
-            return 'wK'
-        else:
-            return None
+
+        dictOfNums = {0: 'bp', 1: 'bN', 2: 'bB', 3: 'bR', 4: 'bK', 5: 'wp', 6: 'wN', 7: 'wB', 8: 'wR', 9: 'wK' , 10: '--'}
+
+        return dictOfNums[num]
 
     def initZobristTable(self):
         """
@@ -203,7 +167,7 @@ class Agent:
         table = []
         for i in range(36):
             table.append([])
-            for j in range(10):
+            for j in range(11):
                 table[i].append(random.randint(0, 2**64 - 1))
         return table
 
@@ -298,12 +262,11 @@ class Agent:
             return None
          #check for endgame
         if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
-            return self.evaluateBoard(gs)
+            return self.Quiesce(gs,alpha,beta,depth)
 
         #check for maxPlayer
         if maxPlayer:
 
-         
             #move ordering for maxPlayer
             #validMoves = self.moveOrdering(validMoves, gs, maxPlayer)
 
@@ -320,9 +283,6 @@ class Agent:
                 copyGS.makeMove(move)
                 #recursive call
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, False)
-
-                #save score of gamestate in table
-                #self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth, 'player': maxPlayer}
 
                 #update score
                 #bestScore = max(bestScore, score)
@@ -359,9 +319,6 @@ class Agent:
                 #recursive call
                 score = self.alphaBeta(copyGS, depth - 1, alpha, beta, True)
 
-                #save score of gamestate in table
-                #self.hashStorageTable[self.hashBoard(copyGS)] = {'score': score, 'depth': depth, 'player': maxPlayer}
-
                 #update score
                 #bestScore = min(bestScore, score)
                 #update beta
@@ -376,7 +333,7 @@ class Agent:
 
             return score 
 
-    def Quiesce(self, gs, alpha, beta):
+    def Quiesce(self, gs, alpha, beta, depth):
         """
         Quiescence search
 
@@ -398,7 +355,23 @@ class Agent:
         if datetime.datetime.now() > self.timeout:
             return False
 
-        stand_pat = self.evaluateBoard(gs)
+        #check if evaluated gamestate is in table
+        #hash actual board
+        actualBoardHashed = self.hashBoard(gs)
+        
+        #get item from table
+        maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
+
+        if maybeSavedEntry != None:# and (maybeSavedEntry['player'] == maxPlayer): and maybeSavedEntry['depth'] == depth:
+            #print('returning from table')
+            self.tableCounter += 1
+            stand_pat = maybeSavedEntry['score']
+        
+        else:
+            stand_pat = self.evaluateBoard(gs)
+            #save score of gamestate in table
+            self.hashStorageTable[actualBoardHashed] = {'score': stand_pat, 'depth': depth}
+
         if(stand_pat >= beta):
             return beta
         if(alpha < stand_pat):
@@ -408,7 +381,7 @@ class Agent:
         for move in validMoves:
             if move.isCapture:
                 gs.makeMove(move)
-                score = -self.Quiesce(gs, -beta, -alpha)
+                score = -self.Quiesce(gs, -beta, -alpha ,depth)
                 gs.undoMove()
                 if(score >= beta):
                     return beta
@@ -560,7 +533,10 @@ class Agent:
         float
 
         """
-        score = 0
+        score = 0   
+
+
+
         
         #check for good checks for white
         #score += self.checkForGoodChecks(gs)
