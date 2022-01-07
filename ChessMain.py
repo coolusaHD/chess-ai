@@ -15,11 +15,11 @@ import time
 import argparse
 import os
 import os.path as osp
-#this stops the print  of the pygame version etc.
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+
 import pygame as py
 import ChessEngine
-# from agents.expert import MrExpert
+from agents.expert import MrExpert
 from agents.random import MrRandom
 from student_agents.template import Agent as Agent1
 from student_agents.template2 import Agent as Agent2
@@ -50,11 +50,7 @@ BOARD_COLOR = data["Board color"]
 # 5 nega max with alpha-beta, move ordering, no threefold , piecepositions * 0.1 
 # 17 random
 
-#disabled because pc has 20 cores :)
-# activate, if on server without video driver:
-#server = multiprocessing.cpu_count() > 17
-#if server:
-#    os.environ["SDL_VIDEODRIVER"] = "dummy"
+
 
 # global colors
 # if BOARD_COLOR == 1:
@@ -72,10 +68,6 @@ CLOCK_PANEL_HEIGHT = 150
 SQ_SIZE = BOARD_HEIGHT // DIMENSION
 MAX_FPS = 15  # for animations later on
 IMAGES = {}
-
-KingImg = py.image.load("images/bK.png")
-py.display.set_icon(KingImg)
-py.display.set_caption("Chess")
 
 
 def loadImages():
@@ -106,6 +98,9 @@ def main(args):
 
     """
     num_games = args.num_games - 1
+    KingImg = py.image.load("images/bK.png")
+    py.display.set_icon(KingImg)
+    py.display.set_caption("Chess")
 
     if args.output_file:
         if osp.isfile(args.output_file):
@@ -121,7 +116,7 @@ def main(args):
         elif path_or_name == 'MrNovice':
             agent = None
         elif path_or_name == 'MrExpert':
-            agent = None
+            agent = MrExpert
         elif path_or_name == 'Human':
             agent = None
         elif path_or_name == 'Agent1':
@@ -161,7 +156,8 @@ def main(args):
     halfmoveClock = 0  # global halfmoveClock
     GameTable = {"Draw by 50 move rule": 0, "Draw by threefold position repetition": 0, "Black wins by checkmate": 0,
                  "White wins by checkmate": 0, "Black wins on time": 0, "White wins on time": 0,
-                 "Draw by insufficient material": 0}
+                 "Draw by insufficient material": 0, "White wins by illegal move": 0,
+                 "Black wins by illegal move": 0}
 
     start_time = -1
 
@@ -277,6 +273,8 @@ def main(args):
                 move_finder_process.join()
             # if not move_finder_process.is_alive():
                 ai_move, nextMoveScore, currentDepth = chessai.get_move()
+                if not ai_move in game_state.getValidMoves():
+                    game_state.illegal_move_done = True
 
                 if game_state.whiteToMove:
                     average_depth_per_game.append(currentDepth)
@@ -318,7 +316,7 @@ def main(args):
             drawGameState(screen, game_state, valid_moves, sqSelected, moveLogFont)
 
         # draw EndGameText
-        if game_state.checkMate or game_state.staleMate or halfmoveClock == 100 or clock_counter < 0 - 0.3 or game_state.threefold or game_state.draw:
+        if game_state.checkMate or game_state.staleMate or halfmoveClock == 100 or clock_counter < 0 - 0.3 or game_state.threefold or game_state.draw or game_state.illegal_move_done:
             game_over = True
             if game_state.threefold:
                 text = "Draw by threefold position repetition"
@@ -332,6 +330,8 @@ def main(args):
                 text = "Black wins on time"
             elif game_state.draw:
                 text = "Draw by insufficient material"
+            elif game_state.illegal_move_done:
+                text = f"{'White' if game_state.whiteToMove else 'Black'} wins by illegal move"
             else:
                 text = "White wins on time"
             if args.use_gui:
@@ -347,7 +347,7 @@ def main(args):
                     print('Intermediate Results:')
                     print(GameTable)
                     if average_depth_per_move:
-                        print('avg moves: ', np.mean(average_depth_per_move))
+                        print('avg depth: ', np.mean(average_depth_per_move))
                     if args.output_file:
                         with open(args.output_file, 'a') as f:
                             f.write(str(GameTable) + "\n")
@@ -376,17 +376,17 @@ def main(args):
             print('Final Results:')
             print(GameTable)
             if average_depth_per_move:
-                print('avg moves:', np.mean(average_depth_per_move))
+                print('avg depth:', np.mean(average_depth_per_move))
             if average_depth_per_game:
-                print('avg moves overall:', np.mean(average_depth_per_game))
+                print('avg depth overall:', np.mean(average_depth_per_game))
             if args.output_file:
                 with open(args.output_file, 'a') as f:
                     f.write('Final Results:\n')
                     f.write(str(GameTable))
                     if average_depth_per_move:
-                        f.write('avg moves:' + str(np.mean(average_depth_per_move)) + '\n')
+                        f.write('avg depth:' + str(np.mean(average_depth_per_move)) + '\n')
                     if average_depth_per_game:
-                        f.write('avg moves overall:' + str(np.mean(average_depth_per_game)))
+                        f.write('avg depth overall:' + str(np.mean(average_depth_per_game)))
             num_games -= 1
             if not args.use_gui:
                 raise SystemExit()
@@ -658,14 +658,22 @@ if __name__ == "__main__":
                              'This file will be overwritten, if it exists.')
     parser.add_argument('--verbose', default=False, action='store_true',
                         help='Whether the output file only contains the final result or all moves.')
-    parser.add_argument('--use_gui', default=False, action='store_true',
+    parser.add_argument('--use_gui', default=True, action='store_true',
                         help='Whether the output file only contains the final result or all moves.')
     parser.add_argument('--num_games', type=int, default=1,
                         help='How many games you want to play with this settings and agents.'
                              'Agents do NOT switch sides after each game.')
     parser.add_argument('--time_control', type=int, default=20,
                         help='How many seconds per move each player has.')
+    parser.add_argument('--evaluation', default=False, action='store_true',
+                        help="Sets graphics driver to 'dummy', so that this runs on a server without optical output.")
 
     args = parser.parse_args()
+
+    # activate, if on server without video driver:
+    # if multiprocessing.cpu_count() > 17:
+    if args.evaluation:
+        os.environ["SDL_VIDEODRIVER"] = "dummy"
     # freeze_support()
+
     main(args)
