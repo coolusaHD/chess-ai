@@ -2,6 +2,7 @@ import random
 import time
 import copy
 import datetime
+from typing import ChainMap
 
 alhpa_cutoff_counter = 0
 beta_cutoff_counter = 0
@@ -109,8 +110,8 @@ class Agent:
                     self.globalBestMove = move
                     self.globalBestScore = score
            
-            print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
-            print('Table counter: ', self.tableCounter)
+            #print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
+            #print('Table counter: ', self.tableCounter)
 
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
@@ -248,22 +249,6 @@ class Agent:
         float
 
         """
-        
-            
-        #    #check if evaluated gamestate is in table
-        #    #hash actual board
-        #    actualBoardHashed = self.hashBoard(gs)
-        #    
-        #    #get item from table
-        #    maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
-#
-        #    if maybeSavedEntry != None:# and (maybeSavedEntry['player'] == maxPlayer): and maybeSavedEntry['depth'] == depth:
-        #        #print('returning from table')
-        #        #self.tableCounter += 1
-        #        return maybeSavedEntry['score']
-        #    else:
-        #        return self.Quiesce(gs, alpha, beta)
-
 
 
         #get all valid moves
@@ -280,7 +265,7 @@ class Agent:
         if maxPlayer:
 
             #move ordering for maxPlayer
-            #validMoves = self.moveOrdering(validMoves, gs, maxPlayer)
+            validMoves = self.moveOrdering( gs, validMoves)
 
             #check for maxPlayer
             #bestScore = -float('inf')
@@ -306,7 +291,7 @@ class Agent:
 
                 #check for beta cut off
                 if beta <= alpha:
-                    self.beta_cutoff_counter += 1
+                    #self.beta_cutoff_counter += 1
                     break
 
             return score
@@ -315,7 +300,7 @@ class Agent:
         else:
 
             #move ordering for minPlayer
-            #validMoves = self.moveOrdering(validMoves, gs, maxPlayer)
+            validMoves = self.moveOrdering(gs,validMoves)
 
             #check for minPlayer
             #bestScore = float('inf')
@@ -340,7 +325,7 @@ class Agent:
 
                 #check for alpha cut off
                 if beta <= alpha:
-                    self.alpha_cutoff_counter += 1
+                    #self.alpha_cutoff_counter += 1
                     break
 
             return score 
@@ -377,7 +362,7 @@ class Agent:
 
         if maybeSavedEntry != None:
             #print('returning from table')
-            self.tableCounter += 1
+            #self.tableCounter += 1
             stand_pat = maybeSavedEntry['score']
         
         else:
@@ -419,52 +404,55 @@ class Agent:
         return array[::-1]
 
     #total evaluation values per piece
-    evaluationValuesOfPieces = {'p': 10, 'N': 40, 'B': 30, 'R': 50, 'K': 900}
+    evaluationValuesOfPieces = {'p': 10, 'N': 28, 'B': 30, 'R': 40, 'K': 0}
+
+    checkEval = 20
+    checkMateEval = 10000
 
     #Evaluation array for white pieces
     pawnEvalWhite = [
-        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-        5.0,  5.0,  5.0,  5.0,  5.0,  5.0,
-        1.5,  2.5,  3.5,  3.5,  2.5,  1.5,
-        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-        0.5,  1.0, -2.0, -2.0,  1.0,  0.5,
-        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+        0 , 0 , 0 , 0 , 0 , 0 ,
+        50, 50, 50, 50, 50, 50,
+        20, 20, 30, 30, 20, 20,
+        15, 0 , 20, 20, 10, 5 ,
+        5 , 10,-20,-20, 10, 5 ,
+        0 , 0 , 0 , 0 , 0 , 0  
     ]
 
     rookEvalWhite = [
-        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-       -0.5,  1.0,  1.0,  1.0,  1.0, -0.5,
-       -0.5,  0.0,  0.0,  0.0,  0.0, -0.5,
-       -0.5,  0.0,  0.0,  0.0,  0.0, -0.5,
-       -0.5,  0.0,  0.0,  0.0,  0.0, -0.5,
-        0.0,  0.0,  1.0,  1.0,  0.0,  0.0,
+        0 , 0 , 0 , 0 , 0 , 0 ,
+        5 ,10 ,10 ,10 ,10 , 5 ,
+        0 , 0 , 0 , 0 , 0 , 0 ,
+        0 , 0 , 0 , 0 , 0 , 0 ,
+       -10, 0 , 0 , 0 , 0 ,-10,
+        0 , 0 ,15 ,15 , 0 , -5 
     ]
 
     knightEvalWhite = [
-        -5.0, -2.0, -1.0, -1.0, -2.0, -5.0,
-        -3.0, -2.0,  0.5,  0.5,  0.0, -3.0,
-        -2.0,  1.0,  2.0,  2.0,  1.0,  0.0,
-        -2.0,  1.0,  2.0,  2.0,  1.0,  0.5,
-        -3.0,  0.0,  0.5,  0.5,  0.0, -3.0,
-        -5.0, -2.0, -1.0, -1.0, -2.0, -5.0,
+       -50,-40,-30,-30,-40,-50,
+       -40,-20, 0 , 0 ,-20,-40,
+       -30, 5 , 15, 15, 5 ,-30,
+       -30, 5 ,-5 ,-5 , 5 ,-30,
+       -40,-20, 5 , 5 , 5 ,-40,
+       -50,-40,-30,-30,-40,-50,  
     ]
 
     bishopEvalWhite = [
-        -2.0, -1.0, -1.0, -1.0, -1.0, -2.0,
-        -1.0,  0.0,  0.0,  0.0,  0.0, -1.0,
-        -1.0,  0.5,  0.0,  0.0,  0.5, -1.0,
-        -1.0,  1.0,  1.0,  1.0,  1.0, -1.0,
-        -1.0,  0.5,  0.0,  0.0,  0.5, -1.0,
-        -2.0, -1.0, -1.0, -1.0, -1.0, -2.0,
+       -20,-10,-10,-10,-10,-20,
+       -10, 0 , 0 , 0 , 0,-10,
+       -10, 5 , 10, 10, 5 ,-10,
+       -10, 5 , 5 , 5 , 10,-10,
+        5 , 0 , 10, 10, 5 , 5 ,
+       -50,-40,-30,-30,-40,-50,  
     ]
 
     kingEvalWhite = [
-        -4.0, -4.0, -5.0, -5.0, -4.0, -4.0,
-        -3.0, -4.0, -5.0, -5.0, -5.0, -3.0,
-        -2.5, -3.0, -4.0, -4.0, -3.0, -2.5,
-        -1.5, -2.0, -2.0, -2.0, -2.0, -1.5,
-         2.0,  2.0,  0.0,  0.0,  2.0,  2.0,
-         2.0,  3.0,  1.0,  1.0,  3.0,  2.0,
+       -30,-40,-50,-50,-40,-30,
+       -30,-40,-50,-50,-40,-30,
+       -30,-40,-50,-50,-40,-30,
+       -20,-20,-20,-20,-20,-10,
+        20, 15, 0 , 0 , 15, 20,
+        50, 10, 5 , 5 , 10, 50,  
     ]
 
     #Evaluation array for black pieces
@@ -476,60 +464,7 @@ class Agent:
 
     validationArrayOfPieces = {'wp': pawnEvalWhite, 'wN': knightEvalWhite, 'wB': bishopEvalWhite, 'wR': rookEvalWhite, 'wK': kingEvalWhite, 'bp': pawnEvalBlack, 'bN': knightEvalBlack, 'bB': bishopEvalBlack, 'bR': rookEvalBlack, 'bK': kingEvalBlack}
 
-    checkEval = 100
-    checkMateEval = 10000
-
-    def moveOrdering(self, moves, gs, maxPlayer):
-        """
-        Helper method to order moves based on their evaluation
-
-        Parameters
-        ----------
-        moves : Moves
-            list of moves to be ordered
-        gs : GameState
-            current game state
-        maxPlayer : bool
-            true if max iteration, false if min iteration
-
-        Returns
-        -------
-        orderedMoves : Moves
-            list of ordered moves
-
-        """
-        orderedMoves = []
-        for move in moves:
-            gs.makeMove(move)
-
-            #check if evaluated gamestate is in table
-            #hash actual board
-            actualBoardHashed = self.hashBoard(gs)
-            
-            #get item from table
-            maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
-
-            if maybeSavedEntry != None:
-                score = maybeSavedEntry['score']
-            else:
-                score = self.evaluateBoard(gs)
-
-            gs.undoMove()
-            orderedMoves.append((score, move))
-
-        #sort moves by highest score
-        orderedMoves.sort(key=lambda x: x[0], reverse = maxPlayer)
-
-        # #split list into two lists
-        # orderedMoves1 = orderedMoves[:len(orderedMoves)//2]
-        # orderedMoves2 = orderedMoves[len(orderedMoves)//2:]
-        # #reverse second list
-        # orderedMoves2 = orderedMoves2[::-1]
-        # #append both lists
-        # orderedMoves = orderedMoves1 + orderedMoves2
-
-        #return only moves
-        return [move for score, move in orderedMoves]
+#-------Evaluation functions-------
 
     def evaluateBoard(self, gs):
         """
@@ -549,15 +484,22 @@ class Agent:
         score = 0   
 
 
-
-        
         #check for good checks for white
         #score += self.checkForGoodChecks(gs)
 
-        #check material
-        #print(gs)
-        score += self.evalMaterial(gs)
+        for i in range(36):
+            figure = gs.board[i]
 
+            if figure[0] == 'w':
+                factor = 1
+            else:
+                factor = -1
+
+            if figure != '--':
+                materialScore = self.evalMaterialOfFigure(figure[1])
+                positionScore = self.evalPositionOfFigure(figure, i)
+                mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
+                score += factor * (materialScore + 0.25*positionScore + 0.5*mobilityScore)
 
 
         #check which color is to move
@@ -633,7 +575,24 @@ class Agent:
                 list.append((i % 6, i // 6))
 
         return list
-    
+
+    def getPositionOfIndex(self,index):
+        """
+        Get the position of the figure
+
+        Parameters
+        ----------
+        index : int
+            index to find position of
+
+        Returns
+        -------
+        list with tupels (r,c)
+            
+
+        """
+        return (index % 6, index // 6)
+
     def getIndexOfPosition(gs, posList):
         """
         Get the index of a position in the board
@@ -657,9 +616,9 @@ class Agent:
         index += posList[1]*6
         return index
    
-    def evalMaterial(self, gs):
+    def checkForGoodChecks(self, gs):
         """
-        Evaluate material on board
+        Check for checks on board for current player
 
         Parameters
         ----------
@@ -671,29 +630,14 @@ class Agent:
         int
 
         """
+
         score = 0
 
-        for i in range(36):
-            figure = gs.board[i]
-            if figure[0] == 'b':
-                factor = -1
-            else:
-                factor = 1
+        if gs.inCheck:
+            score -= self.checkEval
+        if gs.checkMate:
+            score -= self.checkMateEval
 
-            if figure == '--':
-                continue
-            elif figure[1] == 'p':
-                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
-            elif figure[1] == 'N':
-                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
-            elif figure[1] == 'B':
-                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
-            elif figure[1] == 'R':
-                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
-            elif figure[1] == 'K':
-                score += factor*(self.evaluationValuesOfPieces[figure[1]]+self.validationArrayOfPieces[figure][i])
-
-        #return difference of material
         return score
 
     def checkForGoodChecks(self, gs):
@@ -716,11 +660,218 @@ class Agent:
         if gs.inCheck:
             score -= self.checkEval
         if gs.checkMate:
-            score -= self.checkmateEval
+            score -= self.checkMateEval
 
         return score
 
+    def evalMaterialOfFigure(self, figure):
+        """
+        Evaluate the material of a figure
 
+        Parameters
+        ----------
+        figure : str
+            figure to be evaluated
+        index : int
+            index of the figure
+
+        Returns
+        -------
+        int
+
+        """
+        return self.evaluationValuesOfPieces[figure]
+
+    def evalMobilityOfFigure(self, gs, figure ,index):
+        """
+        Evaluate mobility on board
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to be evaluated
+        figure : str
+            figure to be evaluated
+        index : int 
+            index of position on board
+        Returns
+        -------
+        int
+
+        """
+        
+        pos = self.getPositionOfIndex(index)
+
+        if figure == 'p':
+            pM = []
+            gs.getPawnMoves(pos[0], pos[1] ,pM)
+            return len(pM)
+        elif figure == 'N':
+            nM = []
+            gs.getKnightMoves(pos[0], pos[1] ,nM)
+            return len(nM)
+        elif figure == 'B':
+            bM = []
+            gs.getBishopMoves(pos[0], pos[1] ,bM)
+            return len(bM)
+        elif figure == 'R':
+            rM= []
+            gs.getRookMoves(pos[0], pos[1] ,rM)
+            return len(rM)
+        elif figure == 'K':
+            kM = []
+            gs.getKingMoves(pos[0], pos[1] ,kM)
+            return len(kM)
+        else:
+            return 0
+
+    def evalPositionOfFigure(self, figure, index):
+        """
+        Evaluate position on board
+
+        Parameters
+        ----------
+        figure : str
+            figure on index
+        index : int
+            index of position on board
+
+        Returns
+        -------
+        int
+
+        """
+        return self.validationArrayOfPieces[figure][index]
+
+#------Move ordering functions------
+
+    def check_winning_conditions(self,gs):
+        """
+        Check if the game is won
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to be evaluated
+
+        Returns
+        -------
+        bool
+
+        """
+        if gs.checkMate:
+            return True
+        else:
+            return False
+
+    def check_inCheck_condition(self,gs):
+        """
+        Check if the game is in check
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to be evaluated
+
+        Returns
+        -------
+        bool
+
+        """
+        if gs.inCheck:
+            return True
+        else:
+            return False
+
+    def check_is_capture_move(self,move):
+        """
+        Check if the move is a capture move
+
+        Parameters
+        ----------
+        move : Move
+            move to be evaluated
+
+        Returns
+        -------
+        bool
+
+        """
+        if move.pieceCaptured != '--':
+            return True
+        else:
+            return False
+
+    def check_enemy_winning_conditions(self,gs):
+        """
+        Check if the enemy has won in th next move
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to be evaluated
+
+        Returns
+        -------
+        bool
+
+        """
+        nextValidMoves = gs.getValidMoves()
+
+        for move in nextValidMoves:
+            gs.makeMove(move)
+            if gs.checkMate:
+                return True
+            else:
+                gs.undoMove()
+        return False
+
+    def moveOrdering(self,gs,possibleMoves):
+        """
+        Order the moves descending from value
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to be evaluated
+        possibleMove : Move
+            moves to be sorted
+
+        Returns
+        -------
+        list: list of ordered moves
+
+        """
+        
+        sorted_moves = []
+        check_moves = []
+        capture_moves = []
+        last_moves =[]
+
+        for move in possibleMoves:
+
+            gs.makeMove(move)
+
+            #check if the game is won
+            if self.check_winning_conditions(gs):
+                sorted_moves.insert(0,move)
+
+            elif self.check_inCheck_condition(gs):
+                check_moves.append(move)
+            
+            elif self.check_is_capture_move(move):
+                capture_moves.append(move)
+
+            elif self.check_enemy_winning_conditions(gs):
+                last_moves.append(move)
+
+            else:
+                last_moves.insert(0,move)
+
+            gs.undoMove()
+
+        return (sorted_moves+check_moves+capture_moves+last_moves)
+            
 
 
 

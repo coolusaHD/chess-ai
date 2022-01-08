@@ -115,8 +115,8 @@ def main(args):
             agent = MrRandom
         elif path_or_name == 'MrNovice':
             agent = None
-        elif path_or_name == 'MrExpert':
-            agent = MrExpert
+        #elif path_or_name == 'MrExpert':
+        #    agent = MrExpert
         elif path_or_name == 'Human':
             agent = None
         elif path_or_name == 'Agent1':
