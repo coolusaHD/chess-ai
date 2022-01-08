@@ -464,6 +464,78 @@ class Agent:
 
     validationArrayOfPieces = {'wp': pawnEvalWhite, 'wN': knightEvalWhite, 'wB': bishopEvalWhite, 'wR': rookEvalWhite, 'wK': kingEvalWhite, 'bp': pawnEvalBlack, 'bN': knightEvalBlack, 'bB': bishopEvalBlack, 'bR': rookEvalBlack, 'bK': kingEvalBlack}
 
+
+#------Position translator functions ------
+
+
+    def getPositionOfFigure(self, gs, figure):
+        """
+        Get the position of the figure
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to access board
+        figure : str
+            figure to find position of
+
+        Returns
+        -------
+        list with tupels (r,c)
+            
+
+        """
+        list = []
+        for i in range(0, 35):
+            if gs.board[i] == figure:
+                # row = i % 6  -> modulo 6
+                # col = i // 6  -> divide by 6 without remainder
+                list.append((i % 6, i // 6))
+
+        return list
+
+    def getPositionOfIndex(self,index):
+        """
+        Get the position of the figure
+
+        Parameters
+        ----------
+        index : int
+            index to find position of
+
+        Returns
+        -------
+        list with tupels (r,c)
+            
+
+        """
+        return  (index // 6,index % 6)
+
+    def getIndexOfPosition(gs, posList):
+        """
+        Get the index of a position in the board
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to be evaluated
+        posList : list
+            list of position (r,c)
+
+        Returns
+        -------
+        int: index
+
+        """
+        index = 0
+        #add row
+        index += posList[0]
+        #add col
+        index += posList[1]*6
+        return index
+   
+
+
 #-------Evaluation functions-------
 
     def evaluateBoard(self, gs):
@@ -550,72 +622,6 @@ class Agent:
             
         return scoreW-scoreB
 
-    def getPositionOfFigure(self, gs, figure):
-        """
-        Get the position of the figure
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to access board
-        figure : str
-            figure to find position of
-
-        Returns
-        -------
-        list with tupels (r,c)
-            
-
-        """
-        list = []
-        for i in range(0, 35):
-            if gs.board[i] == figure:
-                # row = i % 6  -> modulo 6
-                # col = i // 6  -> divide by 6 without remainder
-                list.append((i % 6, i // 6))
-
-        return list
-
-    def getPositionOfIndex(self,index):
-        """
-        Get the position of the figure
-
-        Parameters
-        ----------
-        index : int
-            index to find position of
-
-        Returns
-        -------
-        list with tupels (r,c)
-            
-
-        """
-        return (index % 6, index // 6)
-
-    def getIndexOfPosition(gs, posList):
-        """
-        Get the index of a position in the board
-
-        Parameters
-        ----------
-        gs : GameState
-            gamestate to be evaluated
-        posList : list
-            list of position (r,c)
-
-        Returns
-        -------
-        int: index
-
-        """
-        index = 0
-        #add row
-        index += posList[0]
-        #add col
-        index += posList[1]*6
-        return index
-   
     def checkForGoodChecks(self, gs):
         """
         Check for checks on board for current player

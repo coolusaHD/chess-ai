@@ -233,6 +233,20 @@ def test_hashingMove():
 
 
 
+def test_indexToPosition():
+    
+    index = 0
+    position = agent.indexToPosition(index)
+
+    assert position == (0,0), "Index to position is wrong"
+
+    index = 36
+    position = agent.indexToPosition(index)
+
+    assert position == (5,5), "Index to position is wrong"
+
+
+
 
 
 
