@@ -274,6 +274,30 @@ def test_indexToPosition():
     assert position == (5,5), "Index to position is wrong4"
 
 
+def test_king404():
+
+    agent.__init__()
+
+    gs = GameState()
+
+    gs.board = [
+                '--', 'bB', 'bK', '--', 'bB', 'wN',
+                '--','bp', 'bp', '--', 'bp', 'bp',
+                '--', '--', '--', '--', '--', '--',
+                '--', 'wp', '--','--', '--', '--',
+                'wB', '--', '--', '--','--', 'wp',
+                'wR', '--', '--', '--', '--', '--']
+
+    gs.whiteToMove = False
+
+    agent.color = 'black'
+
+    moves = gs.getValidMoves()
+
+    print(len(moves))
+
+    assert moves == [], "King is in not found"
+
 
 
 

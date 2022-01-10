@@ -794,6 +794,11 @@ class Move():
         self.pieceMoved = board[self.startRC]
         self.pieceCaptured = board[self.endRC]
 
+        self.playedBoard = board
+
+        if(self.pieceMoved == "--"):
+            raise ValueError('moving a piece that is not on the board')
+
         self.moveID = self.startRow * 1000 + self.startCol * 100 + self.endRow * 10 + self.endCol
 
         # pawn promotion

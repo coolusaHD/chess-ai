@@ -111,12 +111,12 @@ class Agent:
                     self.globalBestScore = score
            
             print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
-            print('Table counter: ', self.tableCounter)
+            #print('Table counter: ', self.tableCounter)
 
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
             
-
+#---------Hashing functions---------
     def indciesOfFigures(self, string):
         """
         Helper method to get indices of figures
@@ -227,6 +227,8 @@ class Agent:
 
         return hash
 
+
+#---------Alpha Beta Functions---------
     def alphaBeta(self, gs, depth, alpha, beta, maxPlayer):
         """
         Recursive method to find best move
@@ -259,7 +261,32 @@ class Agent:
             return None
          #check for endgame
         if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
-            return self.Quiesce(gs,alpha,beta,depth)
+
+
+            #return self.Quiesce(gs,alpha,beta,depth)
+
+
+            #check if evaluated gamestate is in table
+            #hash actual board
+            
+            actualBoardHashed = self.updatezTableFromMove(self.hashedBoard ,gs.moveLog[-1])
+            
+            #get item from table
+            maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
+
+            if maybeSavedEntry != None:
+                #print('returning from table')
+                #self.tableCounter += 1
+                evaluation = maybeSavedEntry['score']
+            
+            else:
+                evaluation = self.evaluateBoard(gs)
+                #save score of gamestate in table
+                self.hashStorageTable[actualBoardHashed] = {'score': evaluation, 'depth': depth}
+
+            return evaluation
+
+
 
         #check for maxPlayer
         if maxPlayer:
@@ -286,12 +313,12 @@ class Agent:
                 #update alpha
                 #alpha = max(alpha, bestScore)
                 if score is None:
-                    return alpha
+                    score=-float('inf')
                 alpha = max(alpha, score)
 
                 #check for beta cut off
                 if beta <= alpha:
-                    self.beta_cutoff_counter += 1
+                    #self.beta_cutoff_counter += 1
                     break
 
             return score
@@ -320,12 +347,12 @@ class Agent:
                 #bestScore = min(bestScore, score)
                 #update beta
                 if score is None:
-                    return beta
+                    score = float('inf')
                 beta = min(beta, score)
 
                 #check for alpha cut off
                 if beta <= alpha:
-                    self.alpha_cutoff_counter += 1
+                    #self.alpha_cutoff_counter += 1
                     break
 
             return score 
@@ -352,6 +379,8 @@ class Agent:
         if datetime.datetime.now() > self.timeout:
             return False
 
+        
+
         #check if evaluated gamestate is in table
         #hash actual board
         
@@ -370,12 +399,23 @@ class Agent:
             #save score of gamestate in table
             self.hashStorageTable[actualBoardHashed] = {'score': stand_pat, 'depth': depth}
 
+        #check for endgame
+        if gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
+            print('returning from endgame')
+            return stand_pat
+
         if(stand_pat >= beta):
             return beta
         if(alpha < stand_pat):
             alpha = stand_pat
         #consider every capture
-        validMoves = gs.getValidMoves()
+        validMoves= []
+        try:
+            validMoves = gs.getValidMoves()
+
+        except:
+            return alpha
+
         for move in validMoves:
             if move.isCapture:
                 gs.makeMove(move)
@@ -386,6 +426,11 @@ class Agent:
                 if(score > alpha):
                     alpha = score
         return alpha
+
+
+
+#---------Evaluation Values---------
+
 
     def reverseArray(array):
         """
@@ -404,7 +449,7 @@ class Agent:
         return array[::-1]
 
     #total evaluation values per piece
-    evaluationValuesOfPieces = {'p': 10, 'N': 28, 'B': 30, 'R': 40, 'K': 0}
+    evaluationValuesOfPieces = {'p': 10, 'N': 32, 'B': 38, 'R': 50, 'K': 0}
 
     checkEval = 20
     checkMateEval = 10000
@@ -553,13 +598,16 @@ class Agent:
         float
 
         """
-        score = 0   
+        score = 0
 
 
         #check for good checks for white
         #score += self.checkForGoodChecks(gs)
 
         for i in range(36):
+            materialScore = 0
+            positionScore = 0
+            mobilityScore = 0
             figure = gs.board[i]
 
             if figure[0] == 'w':
@@ -572,7 +620,7 @@ class Agent:
                 materialScore = self.evalMaterialOfFigure(figure[1])
                 positionScore = self.evalPositionOfFigure(figure, i)
                 mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
-                score += factor * (materialScore + 0.25*positionScore + 0.5*mobilityScore)
+                score += factor * (materialScore + 0.3*positionScore + 0.5*mobilityScore)
 
 
         #check for good and bad captures
@@ -649,10 +697,20 @@ class Agent:
             movingFigure = move.pieceMoved
             capturedFigure = move.pieceCaptured
 
+            if capturedFigure[0] == 'w':
+                factor = -1
+            else:
+                factor = 1
+
             #print(movingFigure, capturedFigure)
 
             if movingFigure[1] == '-':
                 print('something went wrong')
+                print(move)
+                print('moving figure', move.pieceMoved)
+                print('start: ', move.startRC)
+                print('end: ', move.endRC)
+                print(move.playedBoard)
                 return 0
             movingFigureValue = self.evalMaterialOfFigure(movingFigure[1])
             capturedFigureValue = self.evalMaterialOfFigure(capturedFigure[1])
@@ -662,6 +720,8 @@ class Agent:
 
             if movingFigureValue > capturedFigureValue:
                 score -= (capturedFigureValue - movingFigureValue)*0.5
+
+            score *= factor
 
         return score
         
@@ -727,24 +787,30 @@ class Agent:
         
         pos = self.getPositionOfIndex(index)
 
-        if figure == 'p':
-            pM = []
-            gs.getPawnMoves(pos[0], pos[1] ,pM)
+        rc = pos[0] * 6 + pos[1]
+
+        pM = nM = bM = rM = kM = []
+
+
+        if figure == 'p':    #if 5< index < 30  pawn has no possible moves
+            try:
+                gs.getPawnMoves(pos[0], pos[1] ,pM)
+            except:
+                print('pawn')
+                print('index', index)
+                print(gs.board)  
+                
             return len(pM)
         elif figure == 'N':
-            nM = []
             gs.getKnightMoves(pos[0], pos[1] ,nM)
             return len(nM)
         elif figure == 'B':
-            bM = []
             gs.getBishopMoves(pos[0], pos[1] ,bM)
             return len(bM)
         elif figure == 'R':
-            rM= []
             gs.getRookMoves(pos[0], pos[1] ,rM)
             return len(rM)
         elif figure == 'K':
-            kM = []
             gs.getKingMoves(pos[0], pos[1] ,kM)
             return len(kM)
         else:
@@ -887,8 +953,9 @@ class Agent:
             elif self.check_is_capture_move(move):
                 capture_moves.append(move)
 
-            elif self.check_enemy_winning_conditions(gs):
-                last_moves.append(move)
+            #elif self.check_enemy_winning_conditions(gs):
+            #    last_moves.append(move)
+            #TODO: optimize this
 
             else:
                 last_moves.insert(0,move)
