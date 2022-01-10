@@ -236,8 +236,8 @@ def test_hashingMove():
 def test_indexToPosition():
 
     """
-        [R0    1     2     3     4     5   
-    C0  '00', '01', '02', '03', '04', '05',
+        [C0    1     2     3     4     5   
+    R0  '00', '01', '02', '03', '04', '05',
     1   '06', '07', '08', '09', '10', '11',
     2   '12', '13', '14', '15', '16', '17',
     3   '18', '19', '20', '21', '22', '23',
@@ -259,12 +259,19 @@ def test_indexToPosition():
 
     print(position)
 
-    assert position == (1,4), "Index to position is wrong2"
+    assert position == (4,1), "Index to position is wrong2"
+
+    index = 16
+    position = agent.getPositionOfIndex(index)
+
+    print(position)
+
+    assert position == (2,4), "Index to position is wrong3"
 
     index = 35
     position = agent.getPositionOfIndex(index)
 
-    assert position == (5,5), "Index to position is wrong3"
+    assert position == (5,5), "Index to position is wrong4"
 
 
 

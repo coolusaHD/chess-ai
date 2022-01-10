@@ -509,7 +509,7 @@ class Agent:
             
 
         """
-        return  (index % 6,index // 6)
+        return  (index // 6,index % 6)
 
     def getIndexOfPosition(gs, posList):
         """
