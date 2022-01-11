@@ -110,7 +110,7 @@ class Agent:
                     self.globalBestMove = move
                     self.globalBestScore = score
            
-            print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
+            #print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
             #print('Table counter: ', self.tableCounter)
 
         #return best move as update_move
@@ -252,40 +252,44 @@ class Agent:
 
         """
 
-
         #get all valid moves
-        validMoves = gs.getValidMoves()
+        try:
+            validMoves = gs.getValidMoves()
+        except:
+            validMoves = []
+        
 
           #check for timeout
-        if datetime.datetime.now() > self.timeout:
-            return None
+        #if datetime.datetime.now() > self.timeout:
+            #return None
          #check for endgame
-        if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
+        if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw or datetime.datetime.now() > self.timeout or validMoves == []:
 
 
-            #return self.Quiesce(gs,alpha,beta,depth)
+            return self.Quiesce(gs,alpha,beta,depth,2)
 
 
             #check if evaluated gamestate is in table
             #hash actual board
             
-            actualBoardHashed = self.updatezTableFromMove(self.hashedBoard ,gs.moveLog[-1])
+            #actualBoardHashed = self.updatezTableFromMove(self.hashedBoard ,gs.moveLog[-1])
             
             #get item from table
-            maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
+            #maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
 
-            if maybeSavedEntry != None:
-                #print('returning from table')
-                #self.tableCounter += 1
-                evaluation = maybeSavedEntry['score']
+            #if maybeSavedEntry != None:
+            #    #print('returning from table')
+            #    #self.tableCounter += 1
+            #    evaluation = maybeSavedEntry['score']
             
-            else:
-                evaluation = self.evaluateBoard(gs)
-                #save score of gamestate in table
-                self.hashStorageTable[actualBoardHashed] = {'score': evaluation, 'depth': depth}
+            #else:
+            #    evaluation = self.evaluateBoard(gs)
+            #    #save score of gamestate in table
+            #    self.hashStorageTable[actualBoardHashed] = {'score': evaluation, 'depth': depth}
 
-            return evaluation
+            #return evaluation
 
+        
 
 
         #check for maxPlayer
@@ -294,34 +298,34 @@ class Agent:
             #move ordering for maxPlayer
             validMoves = self.moveOrdering( gs, validMoves)
 
-            #check for maxPlayer
-            #bestScore = -float('inf')
-            score = -float('inf')
+            bestScore = -float('inf')
 
             #iterate over all valid moves
             for move in validMoves:
 
                 #copy gamestate
-                copyGS = copy.deepcopy(gs)
+                #copyGS = copy.deepcopy(gs)
                 #make move
-                copyGS.makeMove(move)
+                gs.makeMove(move)
                 #recursive call
-                score = self.alphaBeta(copyGS, depth - 1, alpha, beta, False)
+                score = self.alphaBeta(gs, depth - 1, alpha, beta, False)
+                #undo move
+                gs.undoMove()
+                
 
-                #update score
-                #bestScore = max(bestScore, score)
-                #update alpha
-                #alpha = max(alpha, bestScore)
                 if score is None:
-                    score=-float('inf')
-                alpha = max(alpha, score)
+                    raise ValueError('score is None')
+                #update score
+                bestScore = max(bestScore, score)
+                #update alpha
+                alpha = max(alpha, bestScore)
 
                 #check for beta cut off
                 if beta <= alpha:
                     #self.beta_cutoff_counter += 1
                     break
 
-            return score
+            return bestScore
 
         #check for minPlayer
         else:
@@ -329,25 +333,27 @@ class Agent:
             #move ordering for minPlayer
             validMoves = self.moveOrdering(gs,validMoves)
 
-            #check for minPlayer
-            #bestScore = float('inf')
-            score = float('inf')
+            bestScore = float('inf')
 
             #iterate over all valid moves
             for move in validMoves:
 
                 #copy gamestate
-                copyGS = copy.deepcopy(gs)
+                #copyGS = copy.deepcopy(gs)
                 #make move
-                copyGS.makeMove(move)
+                gs.makeMove(move)
                 #recursive call
-                score = self.alphaBeta(copyGS, depth - 1, alpha, beta, True)
+                score = self.alphaBeta(gs, depth - 1, alpha, beta, True)
+                #undo move
+                gs.undoMove()
 
-                #update score
-                #bestScore = min(bestScore, score)
-                #update beta
+                
+                
                 if score is None:
-                    score = float('inf')
+                    raise ValueError('score is None')
+                #update score
+                bestScore = min(bestScore, score)
+                #update beta
                 beta = min(beta, score)
 
                 #check for alpha cut off
@@ -355,9 +361,9 @@ class Agent:
                     #self.alpha_cutoff_counter += 1
                     break
 
-            return score 
+            return bestScore 
 
-    def Quiesce(self, gs, alpha, beta, depth):
+    def Quiesce(self, gs, alpha, beta, depth , depthLeft):
         """
         Quiescence search
 
@@ -369,18 +375,16 @@ class Agent:
             alpha value
         beta : float
             beta value
+        depth : int
+            depth of recursion
+        depthLeft : int 
+            depth left for recursion
 
         Returns
         -------
         float
 
         """
-        #check for timeout
-        if datetime.datetime.now() > self.timeout:
-            return False
-
-        
-
         #check if evaluated gamestate is in table
         #hash actual board
         
@@ -400,8 +404,8 @@ class Agent:
             self.hashStorageTable[actualBoardHashed] = {'score': stand_pat, 'depth': depth}
 
         #check for endgame
-        if gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
-            print('returning from endgame')
+        if depthLeft == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
+            #print('returning from endgame')
             return stand_pat
 
         if(stand_pat >= beta):
@@ -419,7 +423,7 @@ class Agent:
         for move in validMoves:
             if move.isCapture:
                 gs.makeMove(move)
-                score = -self.Quiesce(gs, -beta, -alpha ,depth)
+                score = -self.Quiesce(gs, -beta, -alpha ,depth, depthLeft-1)
                 gs.undoMove()
                 if(score >= beta):
                     return beta
@@ -449,7 +453,7 @@ class Agent:
         return array[::-1]
 
     #total evaluation values per piece
-    evaluationValuesOfPieces = {'p': 10, 'N': 32, 'B': 38, 'R': 50, 'K': 0}
+    evaluationValuesOfPieces = {'p': 10, 'N': 32, 'B': 35, 'R': 50, 'K': 800}
 
     checkEval = 20
     checkMateEval = 10000
@@ -496,7 +500,7 @@ class Agent:
        -30,-40,-50,-50,-40,-30,
        -30,-40,-50,-50,-40,-30,
        -20,-20,-20,-20,-20,-10,
-        20, 15, 0 , 0 , 15, 20,
+        20, 15,-5 ,-5 , 15, 20,
         50, 10, 5 , 5 , 10, 50,  
     ]
 
@@ -617,14 +621,14 @@ class Agent:
 
             if figure != '--':
                 #score = factor *self.evalMaterialOfFigure(figure[1])
-                materialScore = self.evalMaterialOfFigure(figure[1])
+                #materialScore = self.evalMaterialOfFigure(figure[1])
                 positionScore = self.evalPositionOfFigure(figure, i)
-                mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
+                #mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
                 score += factor * (materialScore + 0.3*positionScore + 0.5*mobilityScore)
 
 
         #check for good and bad captures
-        if gs.moveLog[-1] != None:
+        if gs.moveLog != [] and gs.moveLog[-1] != None:
             score += self.evalCapture(gs.moveLog[-1])
 
         #check which color is to move
@@ -697,31 +701,33 @@ class Agent:
             movingFigure = move.pieceMoved
             capturedFigure = move.pieceCaptured
 
-            if capturedFigure[0] == 'w':
-                factor = -1
-            else:
-                factor = 1
-
             #print(movingFigure, capturedFigure)
 
             if movingFigure[1] == '-':
-                print('something went wrong')
-                print(move)
-                print('moving figure', move.pieceMoved)
-                print('start: ', move.startRC)
-                print('end: ', move.endRC)
-                print(move.playedBoard)
+                #print('something went wrong')
+                #print(move)
+                #print('moving figure', move.pieceMoved)
+                #print('start: ', move.startRC)
+                #print('end: ', move.endRC)
+                #print(move.playedBoard)
                 return 0
+
+            if capturedFigure[1] == '-':
+                return 0
+
+            if movingFigure[1] == 'p':
+                score += 5 #single pawn bonus
+
+
             movingFigureValue = self.evalMaterialOfFigure(movingFigure[1])
             capturedFigureValue = self.evalMaterialOfFigure(capturedFigure[1])
 
             if movingFigureValue < capturedFigureValue:
-                score += (capturedFigureValue - movingFigureValue)*0.5
+                score += (capturedFigureValue - movingFigureValue)*0.6
 
-            if movingFigureValue > capturedFigureValue:
-                score -= (capturedFigureValue - movingFigureValue)*0.5
+            #if movingFigureValue > capturedFigureValue:
+            #    score -= (capturedFigureValue - movingFigureValue)*0.6
 
-            score *= factor
 
         return score
         
@@ -796,9 +802,10 @@ class Agent:
             try:
                 gs.getPawnMoves(pos[0], pos[1] ,pM)
             except:
-                print('pawn')
-                print('index', index)
-                print(gs.board)  
+                return 0
+                #print('pawn')
+                #print('index', index)
+                #print(gs.board)  
                 
             return len(pM)
         elif figure == 'N':
@@ -917,6 +924,31 @@ class Agent:
                 gs.undoMove()
         return False
 
+    def check_is_good_capture_move(self,move):
+        """
+        Check if the move is a good capture move
+
+        Parameters
+        ----------
+        move : Move
+            move to be evaluated
+
+        Returns
+        -------
+        bool
+
+        """
+        if move.pieceCaptured != '--':
+            movingFigure = move.pieceMoved
+            capturedFigure = move.pieceCaptured
+            movingFigureValue = self.evalMaterialOfFigure(movingFigure[1])
+            capturedFigureValue = self.evalMaterialOfFigure(capturedFigure[1])
+
+            if movingFigureValue < capturedFigureValue:
+                return True
+            else:
+                return False
+
     def moveOrdering(self,gs,possibleMoves):
         """
         Order the moves descending from value
@@ -951,7 +983,11 @@ class Agent:
                 check_moves.append(move)
             
             elif self.check_is_capture_move(move):
-                capture_moves.append(move)
+                maybegoodMove = self.check_is_good_capture_move(move)
+                if maybegoodMove:
+                    capture_moves.insert(0,move)
+                else:
+                    capture_moves.append(move)
 
             #elif self.check_enemy_winning_conditions(gs):
             #    last_moves.append(move)
