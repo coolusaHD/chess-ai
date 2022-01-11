@@ -1,25 +1,25 @@
+import os
 import random
+import configparser
 import time
 # for analyzing processing time over all processes
 from multiprocessing import Manager, Value
 
+#
+#   To create another agent:
+#   cp this file into the new one
+#   (optional:) Create a config file: [agentModuleName]Config.ini
+#
+
+
 class Agent:
     def __init__(self):
+        # set the agent name to the Module's name (without the .py)
+        self.agentName = "-- DEFAULT --"
         # move queue containing all moves the AI wants to take
         self.move_queue = None
         # save the piece color for this agent
         self.isWhite = None
-        # the value of each piece
-        self.pieceWeights = {'p' : 1, 'N' : 3, 'B' : 4, 'R' : 5, 'K' : 100}
-        # weights determining the importance of material value and positional value for a move
-        # to be chosen by the Agent
-        # A higher positional value makes it think more about the attacking and attacked squares
-        # while a higher material weight makes it trade more agressively
-        self.positionalWeight = 1
-        self.materialWeight = 10
-        # the maximum recursion depth for alpha beta pruning. -1 if infinite depth should be used
-        self.recursionDepth = 4
-
 
         # analytics values
         # the number of nodes visited to find the move
@@ -33,6 +33,103 @@ class Agent:
         self.nodes = manager.list()
         self.prunes = manager.list()
         self.moves = Value('i', 0)
+
+
+        # weights determining the importance of material value and positional value for a move
+        # to be chosen by the Agent
+        # A higher positional value makes it think more about the attacking and attacked squares
+        # while a higher material weight makes it trade more agressively
+        self.positionalWeight = 1
+        self.materialWeight = 10
+        # the maximum recursion depth for alpha beta pruning. -1 if infinite depth should be used
+        self.recursionDepth = 4
+        # the value of each piece
+        self.pieceWeights = {'p' : 1, 'N' : 3, 'B' : 4, 'R' : 5, 'K' : 1000}
+        # a dictionary assigning values to the position of a piece depending on if its good or bad
+        self.positionalWeights = {
+        'wp' : [5, 5, 5, 5, 5, 5, 5, 6, 7, 7, 6, 5, 0, 0, 8, 8, 0, 0, 0, 0, 7, 7, 0, 0, 5, 6, -5, -5, 6, 5, 0, 0, 0, 0, 0, 0],
+
+        'wN' : [-20, -15, -10, -10, -15, -20, -15, -10, 0, 0, -5, -5, -10, 0, 8, 8, 0, -5, -10, 0, 8, 8, 0, -5, -5, -4, 5, 5, -4, -5, -8, -4, -4, -4, -4, -8],
+
+        'wB' :[-10, -5, -5, -5, -5, -10, -3, 0, 0, 0, 0, -3, -3, 0, 6, 6, 0, -3, -3, 6, 6, 6, 6, -3, -3, 5, 0, 0, 5, -3, -10, -5, -5, -5, -5, -10],
+
+        'wR' : [0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 10, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 5, 5, 0, 0],
+
+        'wK' : [-6, -6, -6, 6, -6, -6, -6, -6, -6, -6, -6, -6, -6, -6, -6, -6, -5, -6, -5, -6, -6, -6, -6, -5, 20, 20, 0, 0, 20, 20, 20, 25, 0, 0, 25, 20],
+
+        'bp' : [0, 0, 0, 0, 0, 0,
+                5, 6, -5, -5, 6, 5,
+                0, 0, 7, 7, 0, 0,
+                0, 0, 8, 8, 0, 0,
+                5, 6, 7, 7, 6, 5,
+                5, 5, 5, 5, 5, 5],
+
+        'bN' : [-8, -4, -4, -4, -4, -8,
+                -5, -4, 5, 5, -4, -5,
+                -5, 0, 8, 8, 0, -10,
+                -5, 0, 8, 8, 0, -10,
+                -5, -5, 0, 0, -10, -15,
+                -20, -15, -10, -10, -15, -20],
+
+        'bB' : [-10, -5, -5, -5, -5, -10,
+                -3, 5, 0, 0, 5, -3,
+                -3, 6, 6, 6, 6, -3,
+                -3, 0, 6, 6, 0, -3,
+                -3, 0, 0, 0, 0, -3,
+                -10, -5, -5, -5, -5, -10],
+
+        'bR' : [0, 0, 5, 5, 0, 0,
+                0, 1, 1, 1, 1, 0,
+                0, 1, 1, 1, 1, 0,
+                0, 1, 1, 1, 1, 0,
+                0, 10, 10, 10, 10, 0,
+                0, 0, 0, 0, 0, 0],
+
+        'bK' : [20, 25, 0, 0, 25, 20,
+                20, 20, 0, 0, 20, 20,
+                -5, -6, -6, -6, -6, -5,
+                -6, -5, -6, -6, -6, -6,
+                -6, -6, -6, -6, -6, -6,
+                -6, -6, 6, -6, -6, -6]}
+
+    # function overriding the configuration values with the values from the given configuration file
+    def ConfigFromFile(self, filePath):
+        # override the values with ones from the agents config file if possible
+        try:
+            config = configparser.ConfigParser()
+            config.read(filePath)
+            self.pieceWeights = {
+                'p' : int(config['WEIGHTS']['pawn']),
+                'N' : int(config['WEIGHTS']['knight']),
+                'B' : int(config['WEIGHTS']['bishop']),
+                'R' : int(config['WEIGHTS']['rook']),
+                'K' : int(config['WEIGHTS']['king'])}
+
+            self.positionalWeight = int(config['WEIGHTS']['position'])
+            self.materialWeight = int(config['WEIGHTS']['material'])
+            self.recursionDepth = int(config['ALPHA_BETA_PRUNING']['depth'])
+            self.agentName = filePath
+            print("\nConfiguration from " + filePath + ":")
+            print({section: dict(config[section]) for section in config.sections()})
+            print()
+        except:
+            #
+            #   could not open configuration file
+            #
+
+            warning = """\n █     █░ ▄▄▄       ██▀███   ███▄    █  ██▓ ███▄    █   ▄████
+▓█░ █ ░█░▒████▄    ▓██ ▒ ██▒ ██ ▀█   █ ▓██▒ ██ ▀█   █  ██▒ ▀█▒
+▒█░ █ ░█ ▒██  ▀█▄  ▓██ ░▄█ ▒▓██  ▀█ ██▒▒██▒▓██  ▀█ ██▒▒██░▄▄▄░
+░█░ █ ░█ ░██▄▄▄▄██ ▒██▀▀█▄  ▓██▒  ▐▌██▒░██░▓██▒  ▐▌██▒░▓█  ██▓
+░░██▒██▓  ▓█   ▓██▒░██▓ ▒██▒▒██░   ▓██░░██░▒██░   ▓██░░▒▓███▀▒
+░ ▓░▒ ▒   ▒▒   ▓▒█░░ ▒▓ ░▒▓░░ ▒░   ▒ ▒ ░▓  ░ ▒░   ▒ ▒  ░▒   ▒
+  ▒ ░ ░    ▒   ▒▒ ░  ░▒ ░ ▒░░ ░░   ░ ▒░ ▒ ░░ ░░   ░ ▒░  ░   ░
+  ░   ░    ░   ▒     ░░   ░    ░   ░ ░  ▒ ░   ░   ░ ░ ░ ░   ░
+    ░          ░  ░   ░              ░  ░           ░       ░ """
+            print('-------------------------------------------------------------------')
+            print(warning)
+            print("\nNo Configuration file specified for Agent: " + filePath +  "\n\n")
+            print('-------------------------------------------------------------------')
 
 
     # function returning the next move from the queue
@@ -94,6 +191,7 @@ class Agent:
         self.prunes.append(self.timesPruned)
 
         print()
+        print("Agent: " + self.agentName)
         print("Took %f s" % (delta / 1000000000))
         print("Visited: %d nodes, pruned %d times" %(self.visitedNodes, self.timesPruned))
         print("Times:         [Min: %f, Max: %f, Avg: %f]" %(min(self.times)/ 1000000000, max(self.times)/ 1000000000, self.Average(self.times)/ 1000000000))
@@ -150,7 +248,7 @@ class Agent:
     # using only material evaluation and endstate evaluation
     # @param gameState: the game state before the move
     # @param move: the move to evaluate
-    # @return: the approximate move value 
+    # @return: the approximate move value
     def EvaluateMoveQuick(self, gameState, move):
          # calculate the positional and material value without the move
         valueBeforeMove = self.GetMaterialValue(gameState.board) + self.EvaluateEndState(gameState)
@@ -173,7 +271,9 @@ class Agent:
     # pieces attacking this square
     def EvaluateState(self, state):
         # calculate the positional value
-        positionalValue =  self.ListSum(self.GetPositionalValue(state)) * self.positionalWeight
+        positionalValue = 0
+        if(not self.positionalWeight == 0):
+            positionalValue = self.GetPositionalValue(state) * self.positionalWeight
         # calculate the material value
         materialValue = self.GetMaterialValue(state.board) * self.materialWeight
         # calculate the end state value
@@ -215,30 +315,23 @@ class Agent:
         #       Determine if this is the wanted behavipur
         #       Maybe change evaluation to include current material of both players (myMaterial vs enemyMaterial)
         #
-        # create a 0's list for the values
-        values = [0 for i in range(len(state.board))]
         # get the agent's team string
         teamColor = 'b'
         if (self.isWhite):
             teamColor = 'w'
+        # initialize the positional value
+        positionalValue = 0
         # go through all fields
-        for i, piece in enumerate(state.board):
-            moves = self.getMoves(state, i // 6, i % 6)
-            # go through all moves and evaluate them
-            for move in moves:
-                    #if (move.isCapture):
-                        # check team of the piece
-                        if(piece[0] == teamColor):
-                            # a team member is attacking an enemy
-                            # add the value of this piece to the attacked square
-                            values[move.endRC] += self.pieceWeights[piece[1]]
-
-                        else:
-                            # a team member is getting attacked
-                            # subtract the value of the piece from the attacking field
-                            values[move.endRC] -= self.pieceWeights[piece[1]]
-
-        return values
+        for position, piece in enumerate(state.board):
+            # ignore empty fields
+            if (piece == '--'):
+                continue
+            # add / subtract the positional value of the piece to the total value
+            if(piece[0] == teamColor):
+                positionalValue += self.positionalWeights[piece][position]
+            else:
+                positionalValue -= self.positionalWeights[piece][position]
+        return positionalValue
 
     # function calculating all possible (legal) moves of the given piece
     # @param state: the gameState to get the moves for

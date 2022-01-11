@@ -110,8 +110,8 @@ class Agent:
                     self.globalBestMove = move
                     self.globalBestScore = score
            
-            #print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
-            #print('Table counter: ', self.tableCounter)
+            print('Actual cutoffs: alpha %d, beta %d' % (self.alpha_cutoff_counter, self.beta_cutoff_counter))
+            print('Table counter: ', self.tableCounter)
 
         #return best move as update_move
         self.update_move(self.globalBestMove, self.globalBestScore, self.currentDepth)
@@ -210,23 +210,58 @@ class Agent:
         #update zobrist table from start and end position of move
         startPos = move.startRC
         endPos = move.endRC
-        figure = move.pieceMoved
+        movingfigure = move.pieceMoved
         capturedFigure = move.pieceCaptured
 
         #print('capturedFig',capturedFigure)
         #print('hb', hash)
 
-        #remove moving figurefrom start pos
-        hash ^= self.zobristTable[startPos][self.indciesOfFigures(figure)]
+        #remove moving figure from start pos
+        hash ^= self.zobristTable[startPos][self.indciesOfFigures(movingfigure)]
         #add empty field at start pos
         hash ^= self.zobristTable[startPos][self.indciesOfFigures('--')]
         #remove capturing figure
         hash ^= self.zobristTable[endPos][self.indciesOfFigures(capturedFigure)]
         #adding moving figure to his new position
-        hash ^= self.zobristTable[endPos][self.indciesOfFigures(figure)]
+        hash ^= self.zobristTable[endPos][self.indciesOfFigures(movingfigure)]
 
         return hash
 
+    def undoUpdatezTableFromMove(self, hash, move):
+        """
+        Helper method to undo the update of the zobrist table after a move
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to access board
+        move : Move
+            move to be evaluated
+
+        Returns
+        -------
+        new hash
+
+        """
+        #update zobrist table from start and end position of move
+        startPos = move.startRC
+        endPos = move.endRC
+        movingfigure = move.pieceMoved
+        capturedFigure = move.pieceCaptured
+
+        #print('capturedFig',capturedFigure)
+        #print('hb', hash)
+
+        #remove moving figure from end pos
+        hash ^= self.zobristTable[endPos][self.indciesOfFigures(movingfigure)]
+        #remove empty field at start pos
+        hash ^= self.zobristTable[startPos][self.indciesOfFigures('--')]
+        #add captured figure
+        hash ^= self.zobristTable[endPos][self.indciesOfFigures(capturedFigure)]
+        #adding moving figure to his old position
+        hash ^= self.zobristTable[startPos][self.indciesOfFigures(movingfigure)]
+
+        return hash
 
 #---------Alpha Beta Functions---------
     def alphaBeta(self, gs, depth, alpha, beta, maxPlayer):
@@ -259,37 +294,10 @@ class Agent:
             validMoves = []
         
 
-          #check for timeout
-        #if datetime.datetime.now() > self.timeout:
-            #return None
-         #check for endgame
+         #check for endgame or timeout
         if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw or datetime.datetime.now() > self.timeout or validMoves == []:
-
-
-            return self.Quiesce(gs,alpha,beta,depth,2)
-
-
-            #check if evaluated gamestate is in table
-            #hash actual board
-            
-            #actualBoardHashed = self.updatezTableFromMove(self.hashedBoard ,gs.moveLog[-1])
-            
-            #get item from table
-            #maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
-
-            #if maybeSavedEntry != None:
-            #    #print('returning from table')
-            #    #self.tableCounter += 1
-            #    evaluation = maybeSavedEntry['score']
-            
-            #else:
-            #    evaluation = self.evaluateBoard(gs)
-            #    #save score of gamestate in table
-            #    self.hashStorageTable[actualBoardHashed] = {'score': evaluation, 'depth': depth}
-
-            #return evaluation
-
-        
+            #return self.Quiesce(gs,alpha,beta,depth,2)
+            return self.evaluateBoard(gs)
 
 
         #check for maxPlayer
@@ -298,8 +306,6 @@ class Agent:
             #move ordering for maxPlayer
             validMoves = self.moveOrdering( gs, validMoves)
 
-            bestScore = -float('inf')
-
             #iterate over all valid moves
             for move in validMoves:
 
@@ -307,25 +313,25 @@ class Agent:
                 #copyGS = copy.deepcopy(gs)
                 #make move
                 gs.makeMove(move)
+                self.hashedBoard = self.updatezTableFromMove(self.hashedBoard, move)
                 #recursive call
                 score = self.alphaBeta(gs, depth - 1, alpha, beta, False)
+                self.hashedBoard = self.undoUpdatezTableFromMove(self.hashedBoard, move)
                 #undo move
                 gs.undoMove()
                 
-
                 if score is None:
                     raise ValueError('score is None')
-                #update score
-                bestScore = max(bestScore, score)
-                #update alpha
-                alpha = max(alpha, bestScore)
+                
+                if score >= beta:
+                    self.beta_cutoff_counter += 1
+                    return beta
 
-                #check for beta cut off
-                if beta <= alpha:
-                    #self.beta_cutoff_counter += 1
-                    break
+                if score > alpha:
+                    alpha = score
+                    
 
-            return bestScore
+            return alpha
 
         #check for minPlayer
         else:
@@ -333,8 +339,6 @@ class Agent:
             #move ordering for minPlayer
             validMoves = self.moveOrdering(gs,validMoves)
 
-            bestScore = float('inf')
-
             #iterate over all valid moves
             for move in validMoves:
 
@@ -342,26 +346,25 @@ class Agent:
                 #copyGS = copy.deepcopy(gs)
                 #make move
                 gs.makeMove(move)
+                self.hashedBoard = self.updatezTableFromMove(self.hashedBoard, move)
                 #recursive call
                 score = self.alphaBeta(gs, depth - 1, alpha, beta, True)
                 #undo move
+                self.hashedBoard = self.undoUpdatezTableFromMove(self.hashedBoard, move)
                 gs.undoMove()
 
-                
-                
+
                 if score is None:
                     raise ValueError('score is None')
-                #update score
-                bestScore = min(bestScore, score)
-                #update beta
-                beta = min(beta, score)
+                
+                if score <= alpha:
+                    self.alpha_cutoff_counter += 1
+                    return alpha
 
-                #check for alpha cut off
-                if beta <= alpha:
-                    #self.alpha_cutoff_counter += 1
-                    break
+                if score < beta:
+                    beta = score
 
-            return bestScore 
+            return beta 
 
     def Quiesce(self, gs, alpha, beta, depth , depthLeft):
         """
@@ -385,23 +388,7 @@ class Agent:
         float
 
         """
-        #check if evaluated gamestate is in table
-        #hash actual board
-        
-        actualBoardHashed = self.updatezTableFromMove(self.hashedBoard ,gs.moveLog[-1])
-        
-        #get item from table
-        maybeSavedEntry = self.hashStorageTable.get(actualBoardHashed)
-
-        if maybeSavedEntry != None:
-            #print('returning from table')
-            self.tableCounter += 1
-            stand_pat = maybeSavedEntry['score']
-        
-        else:
-            stand_pat = self.evaluateBoard(gs)
-            #save score of gamestate in table
-            self.hashStorageTable[actualBoardHashed] = {'score': stand_pat, 'depth': depth}
+        stand_pat = self.evaluateBoard(gs)
 
         #check for endgame
         if depthLeft == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw:
@@ -453,13 +440,13 @@ class Agent:
         return array[::-1]
 
     #total evaluation values per piece
-    evaluationValuesOfPieces = {'p': 10, 'N': 32, 'B': 35, 'R': 50, 'K': 800}
+    evaluationValuesOfPieces = {'p': 10, 'N': 40, 'B': 30, 'R': 50, 'K': 0}
 
     checkEval = 20
     checkMateEval = 10000
 
     #Evaluation array for white pieces
-    pawnEvalWhite = [
+    pawnEvalWhite2 = [
         0 , 0 , 0 , 0 , 0 , 0 ,
         50, 50, 50, 50, 50, 50,
         20, 20, 30, 30, 20, 20,
@@ -468,16 +455,16 @@ class Agent:
         0 , 0 , 0 , 0 , 0 , 0  
     ]
 
-    rookEvalWhite = [
+    rookEvalWhite2 = [
         0 , 0 , 0 , 0 , 0 , 0 ,
         5 ,10 ,10 ,10 ,10 , 5 ,
         0 , 0 , 0 , 0 , 0 , 0 ,
         0 , 0 , 0 , 0 , 0 , 0 ,
        -10, 0 , 0 , 0 , 0 ,-10,
-        0 , 0 ,15 ,15 , 0 , -5 
+        0 , 0 ,15 ,15 , 0 , 0 
     ]
 
-    knightEvalWhite = [
+    knightEvalWhite2 = [
        -50,-40,-30,-30,-40,-50,
        -40,-20, 0 , 0 ,-20,-40,
        -30, 5 , 15, 15, 5 ,-30,
@@ -486,7 +473,7 @@ class Agent:
        -50,-40,-30,-30,-40,-50,  
     ]
 
-    bishopEvalWhite = [
+    bishopEvalWhite2 = [
        -20,-10,-10,-10,-10,-20,
        -10, 0 , 0 , 0 , 0,-10,
        -10, 5 , 10, 10, 5 ,-10,
@@ -495,13 +482,59 @@ class Agent:
        -50,-40,-30,-30,-40,-50,  
     ]
 
-    kingEvalWhite = [
+    kingEvalWhite2 = [
        -30,-40,-50,-50,-40,-30,
        -30,-40,-50,-50,-40,-30,
        -30,-40,-50,-50,-40,-30,
        -20,-20,-20,-20,-20,-10,
         20, 15,-5 ,-5 , 15, 20,
         50, 10, 5 , 5 , 10, 50,  
+    ]
+
+    #Evaluation array for white pieces
+    pawnEvalWhite = [
+        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+        5.0,  5.0,  5.0,  5.0,  5.0,  5.0,
+        1.5,  2.5,  3.5,  3.5,  2.5,  1.5,
+        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+        0.5,  1.0, -2.0, -2.0,  1.0,  0.5,
+        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+    ]
+
+    rookEvalWhite = [
+        0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+       -0.5,  1.0,  1.0,  1.0,  1.0, -0.5,
+       -0.5,  0.0,  0.0,  0.0,  0.0, -0.5,
+       -0.5,  0.0,  0.0,  0.0,  0.0, -0.5,
+       -0.5,  0.0,  0.0,  0.0,  0.0, -0.5,
+        0.0,  0.0,  1.0,  1.0,  0.0,  0.0,
+    ]
+
+    knightEvalWhite = [
+        -5.0, -2.0, -1.0, -1.0, -2.0, -5.0,
+        -3.0, -2.0,  0.5,  0.5,  0.0, -3.0,
+        -2.0,  1.0,  2.0,  2.0,  1.0,  0.0,
+        -2.0,  1.0,  2.0,  2.0,  1.0,  0.5,
+        -3.0,  0.0,  0.5,  0.5,  0.0, -3.0,
+        -5.0, -2.0, -1.0, -1.0, -2.0, -5.0,
+    ]
+
+    bishopEvalWhite = [
+        -2.0, -1.0, -1.0, -1.0, -1.0, -2.0,
+        -1.0,  0.0,  0.0,  0.0,  0.0, -1.0,
+        -1.0,  0.5,  0.0,  0.0,  0.5, -1.0,
+        -1.0,  1.0,  1.0,  1.0,  1.0, -1.0,
+        -1.0,  0.5,  0.0,  0.0,  0.5, -1.0,
+        -2.0, -1.0, -1.0, -1.0, -1.0, -2.0,
+    ]
+
+    kingEvalWhite = [
+        -4.0, -4.0, -5.0, -5.0, -4.0, -4.0,
+        -3.0, -4.0, -5.0, -5.0, -5.0, -3.0,
+        -2.5, -3.0, -4.0, -4.0, -3.0, -2.5,
+        -1.5, -2.0, -2.0, -2.0, -2.0, -1.5,
+         2.0,  2.0,  0.0,  0.0,  2.0,  2.0,
+         2.0,  3.0,  1.0,  1.0,  3.0,  2.0,
     ]
 
     #Evaluation array for black pieces
@@ -587,6 +620,32 @@ class Agent:
 
 #-------Evaluation functions-------
 
+    def checkForSavedEvaluation(self):
+        """
+        Check if a gamestate has been evaluated before
+
+        Parameters
+        ----------
+        gs : GameState
+            gamestate to be evaluated
+
+        Returns
+        -------
+        int: saved evaluation
+
+        """
+        #check if evaluated gamestate is in table
+        #get item from table
+        maybeSavedEntry = self.hashStorageTable.get(self.hashedBoard)
+
+        if maybeSavedEntry != None:
+            #print('returning from table')
+            self.tableCounter += 1
+            savedEvaluation = maybeSavedEntry['score']
+            return savedEvaluation 
+        else:
+            return None
+    
     def evaluateBoard(self, gs):
         """
         Evaluate the gamestate for the board 
@@ -604,27 +663,36 @@ class Agent:
         """
         score = 0
 
+        #check if evaluated gamestate is in table
 
-        #check for good checks for white
-        #score += self.checkForGoodChecks(gs)
+        maybeSavedEvaluation = self.checkForSavedEvaluation()
 
-        for i in range(36):
-            materialScore = 0
-            positionScore = 0
-            mobilityScore = 0
-            figure = gs.board[i]
+        if maybeSavedEvaluation != None:
+            score = maybeSavedEvaluation
+        
+        else:
+            score = 0
+            for i in range(36):
+                materialScore = 0
+                positionScore = 0
+                mobilityScore = 0
+                figure = gs.board[i]
 
-            if figure[0] == 'w':
-                factor = 1
-            else:
-                factor = -1
+                if figure[0] == 'w':
+                    factor = 1
+                else:
+                    factor = -1
 
-            if figure != '--':
-                #score = factor *self.evalMaterialOfFigure(figure[1])
-                #materialScore = self.evalMaterialOfFigure(figure[1])
-                positionScore = self.evalPositionOfFigure(figure, i)
-                #mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
-                score += factor * (materialScore + 0.3*positionScore + 0.5*mobilityScore)
+                if figure != '--':
+                    #score = factor *self.evalMaterialOfFigure(figure[1])
+                    materialScore = self.evalMaterialOfFigure(figure[1])
+                    positionScore = materialScore * self.evalPositionOfFigure(figure, i)
+                    mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
+
+                    score += factor * (1.5*materialScore + 0.3*positionScore + 0.5*mobilityScore)
+
+            #save evaluation in table
+            self.hashStorageTable[self.hashedBoard] = {'score': score}
 
 
         #check for good and bad captures

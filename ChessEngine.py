@@ -50,15 +50,15 @@ class GameState:
 
         # to flip the board:
 
-        for j in range(len(self.board)):
-            print('b' in self.board[j])
-            if 'b' in self.board[j]:
-                self.board[j] = self.board[j].replace('b', 'w')
-            elif 'w' in self.board[j]:
-                self.board[j] = self.board[j].replace('w', 'b')
-        self.board.reverse()
-        for j in range(len(self.board) // 6):
-            print(self.board[j * 6: (j*6)+5])
+        #for j in range(len(self.board)):
+        #    print('b' in self.board[j])
+        #    if 'b' in self.board[j]:
+        #        self.board[j] = self.board[j].replace('b', 'w')
+        #    elif 'w' in self.board[j]:
+        #        self.board[j] = self.board[j].replace('w', 'b')
+        #self.board.reverse()
+        #for j in range(len(self.board) // 6):
+        #    print(self.board[j * 6: (j*6)+5])
 
 
         self.moveFunctions = {'p': self.getPawnMoves, 'R': self.getRookMoves, 'N': self.getKnightMoves,
