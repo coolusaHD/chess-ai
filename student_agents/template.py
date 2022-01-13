@@ -26,12 +26,15 @@ class Agent:
 
         
 
-        self.zobristTable = self.initZobristTable()
+        #self.zobristTable = self.initZobristTable()
         self.hashedBoard = None
         self.hashStorageTable = {}
 
 
         #---------Evaluation Values---------
+
+        #mobility base value
+        self.mobilityEvaluationBaseValue = 10
 
         #ending game values
         self.checkEval = 20
@@ -136,7 +139,7 @@ class Agent:
         """
         #Start timer
         self.start = datetime.datetime.now()
-        self.timeout = self.start + datetime.timedelta(seconds=19)
+        self.timeout = self.start + datetime.timedelta(seconds=18)
         
         #Get playing color of Agent
         if gs.whiteToMove:
@@ -179,8 +182,8 @@ class Agent:
                     self.globalBestDepth = self.depth
 
         #return best move as update_move
-        print('Im taking this move: ' + str(self.globalBestMove))
-        self.update_move(self.globalBestMove, self.globalBestScore, self.depth)
+        #print('Im taking this move: ' + str(self.globalBestMove))
+        self.update_move(self.globalBestMove, self.globalBestScore, self.globalBestDepth)
         
         
 #-------Alpha Beta Search Algorithm-------#
@@ -211,8 +214,8 @@ class Agent:
         
        #check for terminal node and timeout
         if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw or datetime.datetime.now() > self.timeout:
-            return (self.Quiesce(gs,alpha,beta,depth,2), None)
-            #return (self.evaluateBoard(gs), None)
+            #return (self.Quiesce(gs,alpha,beta,depth,2), None)
+            return (self.evaluateBoard(gs), None)
 
         #Get all valid moves
         try:
@@ -286,8 +289,8 @@ class Agent:
         
         #check for terminal node and timeout
         if depth == 0 or gs.checkMate or gs.staleMate or gs.threefold or gs.draw or datetime.datetime.now() > self.timeout:
-            return (self.Quiesce(gs,alpha,beta,depth,2), None)
-            #return (self.evaluateBoard(gs), None)
+            #return (self.Quiesce(gs,alpha,beta,depth,2), None)
+            return (self.evaluateBoard(gs), None)
 
         #Get all valid moves
         try:
@@ -583,7 +586,7 @@ class Agent:
         #check if evaluated gamestate is in table
         #get item from table
         self.hashedBoard = self.hashBoard(gs)
-        maybeSavedEntry = self.hashStorageTable.get()
+        maybeSavedEntry = self.hashStorageTable.get(self.hashedBoard)
 
         if maybeSavedEntry != None:
             #print('returning from table')
@@ -635,8 +638,8 @@ class Agent:
 
                 #score = factor *self.evalMaterialOfFigure(figure[1])
                 materialScore = self.evalMaterialOfFigure(figure[1])
-                #positionScore = self.evalPositionOfFigure(figure, i)
-                #mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
+                positionScore = self.evalPositionOfFigure(figure, i)
+                mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
 
                 score += factor * (materialScore*1.2 + positionScore + mobilityScore*0.3)
 
@@ -650,7 +653,6 @@ class Agent:
             self.hashStorageTable[self.hashedBoard] = {'score': score}
 
         #check which color is to move
-        #because after move gs.whiteToMove is switched
         if self.color == 'white':
             return score
         else:
@@ -746,16 +748,16 @@ class Agent:
             return len(pM)
         elif figure == 'N':
             gs.getKnightMoves(pos[0], pos[1] ,nM)
-            return len(nM)
+            return self.mobilityEvaluationBaseValue *(len(nM)/8)
         elif figure == 'B':
             gs.getBishopMoves(pos[0], pos[1] ,bM)
-            return len(bM)
+            return self.mobilityEvaluationBaseValue *(len(bM)/9)
         elif figure == 'R':
             gs.getRookMoves(pos[0], pos[1] ,rM)
-            return len(rM)
+            return self.mobilityEvaluationBaseValue *(len(rM)/10)
         elif figure == 'K':
             gs.getKingMoves(pos[0], pos[1] ,kM)
-            return len(kM)
+            return self.mobilityEvaluationBaseValue *(len(kM)/8)
         else:
             return 0
 
@@ -796,10 +798,10 @@ class Agent:
             #check if won or lost
             if gs.whiteToMove:
                 #white lost
-                return -100000
+                return -self.checkMateEval
             else:
                 #white won
-                return 100000
+                return self.checkMateEval
         else:
             return 0
 
