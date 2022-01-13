@@ -140,6 +140,13 @@ class Agent:
         #Start timer
         self.start = datetime.datetime.now()
         self.timeout = self.start + datetime.timedelta(seconds=18)
+
+        #prefill move queue so that it is not empty in case of failure
+        self.globalBestMove = gs.getValidMoves()[0]
+        self.globalBestScore = 0
+        self.globalBestDepth = 0
+
+        
         
         #Get playing color of Agent
         if gs.whiteToMove:
