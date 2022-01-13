@@ -176,9 +176,10 @@ class GameState:
             try:
                 self.game_log[tuple(self.board)] -= 1
             except:
-                print('error undo')
-                print(self.board)
-                raise Exception('Error')
+                print("Error in undoMove")
+                print(tuple(self.board))
+                print(self.game_log)
+                print(self.game_log[tuple(self.board)])
 
             self.board[move.startRC] = move.pieceMoved
             self.board[move.endRC] = move.pieceCaptured

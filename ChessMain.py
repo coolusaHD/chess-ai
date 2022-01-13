@@ -663,7 +663,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_games', type=int, default=1,
                         help='How many games you want to play with this settings and agents.'
                              'Agents do NOT switch sides after each game.')
-    parser.add_argument('--time_control', type=int, default=20,
+    parser.add_argument('--time_control', type=int, default=2000,
                         help='How many seconds per move each player has.')
     parser.add_argument('--evaluation', default=False, action='store_true',
                         help="Sets graphics driver to 'dummy', so that this runs on a server without optical output.")

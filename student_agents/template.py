@@ -18,11 +18,14 @@ class Agent:
         self.globalBestScore = 0
         self.globalBestDepth = 0
         #startinf depth
-        self.depth = 0
+        self.depth = 2
         self.color = None
         self.alphaCutOffCounter = 0
         self.betaCutOffCounter = 0
         self.tableCounter = 0
+
+        #killer move table
+        self.killerMoveTable = {}
 
         
 
@@ -59,9 +62,9 @@ class Agent:
 
         self.knightEvalWhite = [
             -20, -15, -10, -10, -15, -20,
-            -15, -10, 0, 0, -5, -5,
-            -10, 0, 8, 8, 0, -5,
-            -10, 0, 8, 8, 0, -5,
+            -15, -10, 0, 0, -10, -15,
+            -5, 0, 8, 8, 0, -5,
+            -5, 0, 8, 8, 0, -5,
             -5, -4, 5, 5, -4, -5,
             -8, -4, -4, -4, -4, -8]
 
@@ -91,9 +94,9 @@ class Agent:
 
         #total evaluation values per piece
         self.evaluationValuesOfPieces = {'p': 10,
-                                        'N': 50,
-                                        'B': 40,
-                                        'R': 60,
+                                        'N': 38,
+                                        'B': 34,
+                                        'R': 50,
                                         'K': 0}
         #and their positions
         self.validationArrayOfPieces = {'wp': self.pawnEvalWhite,
@@ -149,10 +152,11 @@ class Agent:
         
         
         #Get playing color of Agent
-        if gs.whiteToMove:
-            self.color = 'white'
-        else:
-            self.color = 'black'
+        if self.color == None:
+            if gs.whiteToMove:
+                self.color = 'white'
+            else:
+                self.color = 'black'
 
         #hash board for first time
         self.hashedBoard = self.hashBoard(gs)
@@ -175,7 +179,7 @@ class Agent:
 
             #itertive deepening
             while datetime.datetime.now() < self.timeout:
-                self.depth += 1
+                
 
                 (bestScore, bestMove) = self.alphaBetaMax(gs,-100000, 100000, self.depth)
                 
@@ -183,10 +187,16 @@ class Agent:
                 print('Alpha CO: %d Beta CO: %d and Table counter: %d' % (self.alphaCutOffCounter, self.betaCutOffCounter, self.tableCounter))
                 print('Time: ' + str(datetime.datetime.now() - self.start))
 
-                if bestScore != None :
+                #self.globalBestScore = bestScore
+                #self.globalBestMove = bestMove
+                #self.globalBestDepth = self.depth
+                
+                if bestMove != None and self.depth == self.globalBestDepth+1 :
                     self.globalBestScore = bestScore
                     self.globalBestMove = bestMove
                     self.globalBestDepth = self.depth
+
+                self.depth += 1
 
         #return best move as update_move
         #print('Im taking this move: ' + str(self.globalBestMove))
@@ -225,11 +235,8 @@ class Agent:
             return (self.evaluateBoard(gs), None)
 
         #Get all valid moves
-        try:
-            validMoves = gs.getValidMoves()
-        except:
-            print(gs.board)
-            validMoves = []
+        validMoves = gs.getValidMoves()
+
 
         if len(validMoves) == 0:
             return (self.evaluateBoard(gs), None)
@@ -255,6 +262,8 @@ class Agent:
             #pruning and cut offs
             if score >= beta:
                 self.betaCutOffCounter += 1
+                #add to killer move table
+                self.killerMoveTable[str(move)] = True
                 return (score, move)
 
             if score > alpha:
@@ -300,11 +309,8 @@ class Agent:
             return (self.evaluateBoard(gs), None)
 
         #Get all valid moves
-        try:
-            validMoves = gs.getValidMoves()
-        except:
-            print(gs.board)
-            validMoves = []
+        validMoves = gs.getValidMoves()
+
 
         if len(validMoves) == 0:
             return (self.evaluateBoard(gs), None)
@@ -330,6 +336,8 @@ class Agent:
             #pruning and cut offs
             if score <= alpha:
                 self.alphaCutOffCounter += 1
+                #add to killer move table
+                self.killerMoveTable[str(move)] = True
                 return (score, move)
 
             if score < beta:
@@ -646,7 +654,7 @@ class Agent:
                 #score = factor *self.evalMaterialOfFigure(figure[1])
                 materialScore = self.evalMaterialOfFigure(figure[1])
                 positionScore = self.evalPositionOfFigure(figure, i)
-                mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
+                #mobilityScore = self.evalMobilityOfFigure(gs,figure[1], i)
 
                 score += factor * (materialScore*1.2 + positionScore + mobilityScore*0.3)
 
@@ -738,33 +746,27 @@ class Agent:
         int
 
         """
+        newGs = copy.deepcopy(gs)
         
         pos = self.getPositionOfIndex(index)
 
         pM = nM = bM = rM = kM = []
 
-        if figure == 'p':    #if 5< index < 30  pawn has no possible moves
-            try:
-                gs.getPawnMoves(pos[0], pos[1] ,pM)
-            except:
-                return 0
-                #print('pawn')
-                #print('index', index)
-                #print(gs.board)  
-                
-            return len(pM)
-        elif figure == 'N':
-            gs.getKnightMoves(pos[0], pos[1] ,nM)
+        if figure == 'N':
+            newGs.getKnightMoves(pos[0], pos[1] ,nM)
             return self.mobilityEvaluationBaseValue *(len(nM)/8)
         elif figure == 'B':
-            gs.getBishopMoves(pos[0], pos[1] ,bM)
+            newGs.getBishopMoves(pos[0], pos[1] ,bM)
             return self.mobilityEvaluationBaseValue *(len(bM)/9)
         elif figure == 'R':
-            gs.getRookMoves(pos[0], pos[1] ,rM)
+            newGs.getRookMoves(pos[0], pos[1] ,rM)
             return self.mobilityEvaluationBaseValue *(len(rM)/10)
         elif figure == 'K':
-            gs.getKingMoves(pos[0], pos[1] ,kM)
+            newGs.getKingMoves(pos[0], pos[1] ,kM)
             return self.mobilityEvaluationBaseValue *(len(kM)/8)
+        elif figure == 'p':   
+            newGs.getPawnMoves(pos[0], pos[1] ,pM)
+            return len(pM)
         else:
             return 0
 
@@ -804,11 +806,17 @@ class Agent:
         if gs.checkMate:
             #check if won or lost
             if gs.whiteToMove:
-                #white lost
-                return -self.checkMateEval
+                
+                if self.color == 'white':
+                    return -self.checkMateEval
+                else:
+                    return self.checkMateEval
             else:
-                #white won
-                return self.checkMateEval
+
+                if self.color == 'white':
+                    return self.checkMateEval
+                else:
+                    return -self.checkMateEval
         else:
             return 0
 
@@ -836,10 +844,31 @@ class Agent:
         gs.makeMove(move)
         #get value of move
         valueAfterMove = self.evaluateBoardShort(gs)
+
+        bonus = 0
+
+        if gs.checkMate:
+            bonus += self.checkMateEval
+        if gs.inCheck:
+            bonus += self.checkEval
+        if move.pieceCaptured != '--':
+            captureBonus = self.evalMaterialOfFigure(move.pieceCaptured[1])-self.evalMaterialOfFigure(move.pieceMoved[1])
+            if captureBonus > 0:
+                bonus += captureBonus
+
+        #check if move is a promotion
+        if move.pieceMoved == 'p' and move.isPawnPromotion:
+            bonus += 100
+
+        #check if move is a killer move
+        if self.killerMoveTable.get(str(move)) != None:
+            bonus += 1000
+        
+
         #undo move
         gs.undoMove()
 
-        return valueAfterMove - currentValue
+        return (valueAfterMove - currentValue) + bonus
 
 
 #-------Opening Book Functions-------#
