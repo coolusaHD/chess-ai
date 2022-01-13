@@ -173,7 +173,12 @@ class GameState:
         if len(self.moveLog) != 0:  # make sure at least one move has been made to undo
             move = self.moveLog.pop()
             # undo move from GameLog to avoid threefold stacking
-            self.game_log[tuple(self.board)] -= 1
+            try:
+                self.game_log[tuple(self.board)] -= 1
+            except:
+                print('error undo')
+                print(self.board)
+                raise Exception('Error')
 
             self.board[move.startRC] = move.pieceMoved
             self.board[move.endRC] = move.pieceCaptured
@@ -729,9 +734,13 @@ class GameState:
 
         """
         rc = r * 6 + c
-        if self.board[rc + 1] == "--":
-            if not self.squareUnderAttack(r, c + 1):
-                moves.append(Move((r, c), (r, c + 2), self.board))
+        try:
+            if self.board[rc + 1] == "--":
+                if not self.squareUnderAttack(r, c + 1):
+                    moves.append(Move((r, c), (r, c + 2), self.board))
+        except:
+            print(self.board)
+            print('e rc')
 
     def getQueensideCastleMoves(self, r, c, moves):
         """

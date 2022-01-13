@@ -341,9 +341,30 @@ class Test_TestAgent(unittest.TestCase):
         moves = gs.getValidMoves()
 
         for move in moves:
-            print(move)
+            gs.makeMove(move)
+            gs.undoMove()
+            #print(move)
 
         assert 'Nxf1' in moves, "Move error"
+
+
+    def test_getValidMovesError(self):
+
+        gs = GameState()
+
+        gs.board = ['bR', 'bB', 'bN', 'bK', 'bB', 'bR',
+                    'bp', 'bp', 'bp', 'bp', '--', 'bp',
+                    '--', '--', '--', '--', 'wp', '--',
+                    '--', '--', '--', '--', '--', '--',
+                    'wp', 'wp', 'wp', '--', 'wp', 'wp',
+                    'wR', 'wB', 'wN', 'wK', 'wB', 'wR']
+
+        moves = gs.getValidMoves()
+        
+        for move in moves:
+            print(move)
+
+        assert False == True, "Get valid moves error"
                 
 
     if __name__ == '__main__':
